@@ -9,15 +9,7 @@ import {
   ExternalLink,
   Plus,
   RefreshCw,
-  GitBranch,
-  Lock,
-  HelpCircle,
-  Clock,
-  Trash2,
-  Check,
-  ArrowRight,
-  Network,
-  List
+  HelpCircle
 } from 'lucide-react';
 import { clearToken, isRemembered, maskToken, saveToken } from '../services/tokenStore';
 import {
@@ -25,19 +17,11 @@ import {
   listRepositories,
   createRepository,
   pushFilesToGitHub,
-  fetchRemoteCommits,
-  listBranches,
-  createBranch,
-  deleteBranch,
-  compareBranches,
-  BranchComparison,
   GitHubUser,
-  GitHubRepo,
-  GitHubBranch,
-  RemoteCommitInfo
+  GitHubRepo
 } from '../services/githubService';
-import { ConfirmationModal } from './ConfirmationModal';
-import { BranchTreeMap } from './BranchTreeMap';
+import { BranchManager } from './BranchManager';
+import { RemoteCommitsFeed } from './RemoteCommitsFeed';
 import { useT } from '../i18n';
 
 export const GitHubPanel: React.FC = () => {
@@ -54,23 +38,13 @@ export const GitHubPanel: React.FC = () => {
   const [repos, setRepos] = useState<GitHubRepo[]>([]);
   const [, setLoadingRepos] = useState(false);
   const [pushing, setPushing] = useState(false);
-  const [remoteCommits, setRemoteCommits] = useState<RemoteCommitInfo[]>([]);
-  const [loadingCommits, setLoadingCommits] = useState(false);
+  const [commitsRefreshKey, setCommitsRefreshKey] = useState(0);
+  const repoDefaultBranch = repos.find((r) => r.name === gitHubConfig.repo)?.default_branch;
 
   // Token persistence: session-only by default, localStorage when "remember" is checked
   const [rememberToken, setRememberToken] = useState(() => isRemembered());
 
   // Branch management state
-  const [branches, setBranches] = useState<GitHubBranch[]>([]);
-  const [loadingBranches, setLoadingBranches] = useState(false);
-  const [branchViewMode, setBranchViewMode] = useState<'tree' | 'table'>('tree');
-  const [comparisons, setComparisons] = useState<Record<string, BranchComparison>>({});
-  const [showCreateBranchModal, setShowCreateBranchModal] = useState(false);
-  const [newBranchName, setNewBranchName] = useState('');
-  const [baseBranch, setBaseBranch] = useState(gitHubConfig.branch || 'main');
-  const [isCreatingBranch, setIsCreatingBranch] = useState(false);
-  const [branchToDelete, setBranchToDelete] = useState<string | null>(null);
-  const [, setIsDeletingBranch] = useState(false);
 
   // Create repo modal
   const [showCreateRepoModal, setShowCreateRepoModal] = useState(false);
@@ -86,21 +60,6 @@ export const GitHubPanel: React.FC = () => {
       handleValidate(gitHubConfig.token, false);
     }
   }, [gitHubConfig.token]);
-
-  // Load branches and commits when repo changes
-  useEffect(() => {
-    if (gitHubConfig.connected && gitHubConfig.owner && gitHubConfig.repo) {
-      loadBranchesList();
-      loadRemoteCommitsList();
-    }
-  }, [gitHubConfig.owner, gitHubConfig.repo]);
-
-  // Reload commits when branch changes
-  useEffect(() => {
-    if (gitHubConfig.connected && gitHubConfig.owner && gitHubConfig.repo && gitHubConfig.branch) {
-      loadRemoteCommitsList();
-    }
-  }, [gitHubConfig.branch]);
 
   async function handleValidate(token: string, logSuccess = true) {
     if (!token.trim()) return;
@@ -145,76 +104,6 @@ export const GitHubPanel: React.FC = () => {
     }
   }
 
-  async function loadBranchesList() {
-    if (!gitHubConfig.token || !gitHubConfig.owner || !gitHubConfig.repo) return;
-    setLoadingBranches(true);
-    try {
-      const branchList = await listBranches(
-        gitHubConfig.token,
-        gitHubConfig.owner,
-        gitHubConfig.repo
-      );
-      setBranches(branchList);
-
-      // Determine default branch (main or master or first)
-      const defaultBrName =
-        repos.find((r) => r.name === gitHubConfig.repo)?.default_branch ||
-        (branchList.some((b) => b.name === 'main') ? 'main' : branchList[0]?.name || 'main');
-
-      // Ensure active branch exists in list, otherwise select first
-      if (branchList.length > 0 && !branchList.some((b) => b.name === gitHubConfig.branch)) {
-        onUpdateConfig({
-          ...gitHubConfig,
-          branch: branchList[0].name
-        });
-      }
-
-      // Fetch comparisons asynchronously
-      const compMap: Record<string, BranchComparison> = {};
-      for (const b of branchList) {
-        if (b.name !== defaultBrName) {
-          try {
-            const cmp = await compareBranches(
-              gitHubConfig.token,
-              gitHubConfig.owner,
-              gitHubConfig.repo,
-              defaultBrName,
-              b.name
-            );
-            if (cmp) {
-              compMap[b.name] = cmp;
-            }
-          } catch {
-            // ignore comparison errors
-          }
-        }
-      }
-      setComparisons(compMap);
-    } catch (e: any) {
-      console.warn('Failed to load branches', e);
-    } finally {
-      setLoadingBranches(false);
-    }
-  }
-
-  async function loadRemoteCommitsList() {
-    if (!gitHubConfig.token || !gitHubConfig.owner || !gitHubConfig.repo) return;
-    setLoadingCommits(true);
-    try {
-      const commits = await fetchRemoteCommits(
-        gitHubConfig.token,
-        gitHubConfig.owner,
-        gitHubConfig.repo,
-        gitHubConfig.branch || 'main'
-      );
-      setRemoteCommits(commits);
-    } catch (e) {
-      console.warn('Failed to load remote commits', e);
-    } finally {
-      setLoadingCommits(false);
-    }
-  }
-
   const handleDisconnect = () => {
     clearToken();
     setTokenInput('');
@@ -229,70 +118,7 @@ export const GitHubPanel: React.FC = () => {
     });
     setGitUser(null);
     setRepos([]);
-    setBranches([]);
-    setRemoteCommits([]);
     onLog('GitHub отключен', 'info');
-  };
-
-  // Branch operations: Switch, Create, Delete
-  const handleSwitchBranch = (branchName: string) => {
-    onUpdateConfig({
-      ...gitHubConfig,
-      branch: branchName
-    });
-    onLog(`Активная ветка переключена на: ${branchName}`, 'info');
-  };
-
-  const handleCreateBranchSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newBranchName.trim() || !gitHubConfig.token || !gitHubConfig.owner || !gitHubConfig.repo)
-      return;
-
-    setIsCreatingBranch(true);
-    try {
-      const cleanName = newBranchName.trim().replace(/\s+/g, '-');
-      onLog(`Создание ветки "${cleanName}" из "${baseBranch}"...`, 'info');
-
-      await createBranch(
-        gitHubConfig.token,
-        gitHubConfig.owner,
-        gitHubConfig.repo,
-        cleanName,
-        baseBranch
-      );
-
-      onLog(`Ветка "${cleanName}" успешно создана на GitHub!`, 'success');
-      setShowCreateBranchModal(false);
-      setNewBranchName('');
-
-      // Refresh and switch to newly created branch
-      await loadBranchesList();
-      handleSwitchBranch(cleanName);
-    } catch (err: any) {
-      onLog(`Ошибка создания ветки: ${err.message}`, 'error');
-      alert(`Ошибка: ${err.message}`);
-    } finally {
-      setIsCreatingBranch(false);
-    }
-  };
-
-  const handleConfirmDeleteBranch = async () => {
-    if (!branchToDelete || !gitHubConfig.token || !gitHubConfig.owner || !gitHubConfig.repo) return;
-
-    setIsDeletingBranch(true);
-    try {
-      onLog(`Удаление ветки "${branchToDelete}" с GitHub...`, 'warning');
-      await deleteBranch(gitHubConfig.token, gitHubConfig.owner, gitHubConfig.repo, branchToDelete);
-
-      onLog(`Ветка "${branchToDelete}" удалена`, 'success');
-      setBranchToDelete(null);
-      await loadBranchesList();
-    } catch (err: any) {
-      onLog(`Ошибка удаления ветки: ${err.message}`, 'error');
-      alert(`Ошибка: ${err.message}`);
-    } finally {
-      setIsDeletingBranch(false);
-    }
   };
 
   const handlePushCurrentCode = async () => {
@@ -326,7 +152,7 @@ export const GitHubPanel: React.FC = () => {
       );
 
       onLog(`Успешно отправлено на GitHub! Коммит: ${result.commitSha.slice(0, 7)}`, 'success');
-      loadRemoteCommitsList();
+      setCommitsRefreshKey((k) => k + 1);
       alert(
         `Успешно отправлено в ветку ${gitHubConfig.branch} на GitHub!\nСсылка: ${result.commitUrl}`
       );
@@ -614,192 +440,7 @@ export const GitHubPanel: React.FC = () => {
             </div>
           </div>
 
-          {/* Branch Management Section */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <GitBranch className="w-5 h-5 text-purple-400" />
-                  <span>{t.branchSectionTitle}</span>
-                </h3>
-                <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
-                  <span>{t.activeBranchLabel}</span>
-                  <span className="font-mono font-bold text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
-                    {gitHubConfig.branch || 'main'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {/* View Mode Toggle: Tree vs List */}
-                <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setBranchViewMode('tree')}
-                    className={`px-2.5 py-1 text-xs rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
-                      branchViewMode === 'tree'
-                        ? 'bg-purple-600 text-white shadow-sm font-semibold'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <Network className="w-3.5 h-3.5" />
-                    <span>Схема веток</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBranchViewMode('table')}
-                    className={`px-2.5 py-1 text-xs rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
-                      branchViewMode === 'table'
-                        ? 'bg-purple-600 text-white shadow-sm font-semibold'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <List className="w-3.5 h-3.5" />
-                    <span>Список</span>
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={loadBranchesList}
-                  disabled={loadingBranches}
-                  className="p-2 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-xl text-slate-400 hover:text-white transition cursor-pointer"
-                  title={t.refreshBranches}
-                >
-                  <RefreshCw className={`w-4 h-4 ${loadingBranches ? 'animate-spin' : ''}`} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBaseBranch(gitHubConfig.branch || 'main');
-                    setShowCreateBranchModal(true);
-                  }}
-                  className="px-3 py-1.5 text-xs font-semibold text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>{t.createBranchBtn}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Branches Display: Tree Map or Table */}
-            {loadingBranches ? (
-              <div className="p-6 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-                <RefreshCw className="w-4 h-4 animate-spin text-purple-400" />
-                <span>Загрузка веток с GitHub...</span>
-              </div>
-            ) : branches.length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-500 font-mono bg-slate-950/40 rounded-xl">
-                Ветки не найдены. Создайте ветку выше.
-              </div>
-            ) : branchViewMode === 'tree' ? (
-              <BranchTreeMap
-                branches={branches}
-                activeBranch={gitHubConfig.branch || 'main'}
-                defaultBranch={
-                  repos.find((r) => r.name === gitHubConfig.repo)?.default_branch || 'main'
-                }
-                repoOwner={gitHubConfig.owner}
-                repoName={gitHubConfig.repo}
-                comparisons={comparisons}
-                onSwitchBranch={handleSwitchBranch}
-                onCreateFromBranch={(base) => {
-                  setBaseBranch(base);
-                  setShowCreateBranchModal(true);
-                }}
-                onDeleteBranch={(name) => setBranchToDelete(name)}
-                lang={lang}
-              />
-            ) : (
-              <div className="divide-y divide-slate-800/80 border border-slate-800/80 rounded-xl bg-slate-950/70 overflow-hidden font-mono text-xs">
-                {branches.map((b) => {
-                  const isActive = gitHubConfig.branch === b.name;
-                  const isDefault = b.name === 'main' || b.name === 'master';
-
-                  return (
-                    <div
-                      key={b.name}
-                      className={`p-3.5 flex items-center justify-between gap-3 transition ${
-                        isActive ? 'bg-purple-950/20' : 'hover:bg-slate-900/60'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <GitBranch
-                          className={`w-4 h-4 shrink-0 ${
-                            isActive ? 'text-purple-400' : 'text-slate-500'
-                          }`}
-                        />
-                        <span
-                          className={`font-semibold truncate ${
-                            isActive ? 'text-white' : 'text-slate-300'
-                          }`}
-                        >
-                          {b.name}
-                        </span>
-
-                        {isActive && (
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                            Активная
-                          </span>
-                        )}
-
-                        {isDefault && (
-                          <span className="text-[10px] font-semibold text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
-                            Default
-                          </span>
-                        )}
-
-                        {b.protected && (
-                          <span
-                            title="Protected branch"
-                            className="text-amber-400 flex items-center gap-0.5 text-[10px]"
-                          >
-                            <Lock className="w-3 h-3" />
-                          </span>
-                        )}
-
-                        {b.commit?.sha && (
-                          <span className="text-[11px] text-slate-500 hidden sm:inline">
-                            ({b.commit.sha.slice(0, 7)})
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        {!isActive ? (
-                          <button
-                            type="button"
-                            onClick={() => handleSwitchBranch(b.name)}
-                            className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-purple-600 text-slate-300 hover:text-white transition flex items-center gap-1 cursor-pointer"
-                          >
-                            <ArrowRight className="w-3 h-3" />
-                            <span>{t.switchBranchBtn}</span>
-                          </button>
-                        ) : (
-                          <span className="text-xs text-emerald-400 flex items-center gap-1 font-sans">
-                            <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                            <span className="hidden sm:inline">Выбрана</span>
-                          </span>
-                        )}
-
-                        {/* Delete button (cannot delete active or default branch) */}
-                        {!isActive && !isDefault && !b.protected && (
-                          <button
-                            type="button"
-                            onClick={() => setBranchToDelete(b.name)}
-                            className="p-1 text-slate-500 hover:text-red-400 hover:bg-red-950/30 rounded transition cursor-pointer"
-                            title={t.deleteBranchBtn}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <BranchManager defaultBranch={repoDefaultBranch} />
 
           {/* Sync & Auto-push Actions */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
@@ -839,127 +480,7 @@ export const GitHubPanel: React.FC = () => {
             </div>
           </div>
 
-          {/* Remote Commits Feed */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-indigo-400" />
-                <span>
-                  {t.recentCommitsTitle}{' '}
-                  <code className="text-purple-300">({gitHubConfig.branch})</code>
-                </span>
-              </h4>
-              <button
-                type="button"
-                onClick={loadRemoteCommitsList}
-                disabled={loadingCommits}
-                className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer"
-              >
-                <RefreshCw className={`w-3 h-3 ${loadingCommits ? 'animate-spin' : ''}`} />
-                <span>{t.refreshCommits}</span>
-              </button>
-            </div>
-
-            {remoteCommits.length === 0 ? (
-              <div className="p-6 rounded-xl bg-slate-950/40 text-xs text-slate-500 text-center font-mono">
-                {t.noRemoteCommits}
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-800/80 border border-slate-800/80 rounded-xl bg-slate-950/60 overflow-hidden font-mono text-xs">
-                {remoteCommits.map((c) => (
-                  <div
-                    key={c.sha}
-                    className="p-3 hover:bg-slate-900/60 transition flex items-center justify-between gap-3"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="font-semibold text-purple-300 shrink-0 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20">
-                        {c.sha}
-                      </span>
-                      <span className="text-slate-200 truncate">{c.message}</span>
-                    </div>
-
-                    <div className="flex items-center gap-3 shrink-0 text-slate-500 text-[11px]">
-                      <span>{c.author}</span>
-                      {c.html_url && (
-                        <a
-                          href={c.html_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-slate-400 hover:text-white"
-                          title="Открыть на GitHub"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Modal: Create Branch */}
-      {showCreateBranchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl text-slate-200 space-y-4">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <GitBranch className="w-5 h-5 text-purple-400" />
-              <span>{t.createBranchModalTitle}</span>
-            </h3>
-
-            <form onSubmit={handleCreateBranchSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">
-                  Название новой ветки
-                </label>
-                <input
-                  type="text"
-                  value={newBranchName}
-                  onChange={(e) => setNewBranchName(e.target.value)}
-                  placeholder={t.branchNamePlaceholder}
-                  autoFocus
-                  className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">
-                  {t.baseBranchLabel}
-                </label>
-                <select
-                  value={baseBranch}
-                  onChange={(e) => setBaseBranch(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-xl text-slate-100 font-mono focus:outline-none focus:border-purple-500"
-                >
-                  {branches.map((b) => (
-                    <option key={b.name} value={b.name}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateBranchModal(false)}
-                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-white transition cursor-pointer"
-                >
-                  {t.cancel}
-                </button>
-                <button
-                  type="submit"
-                  disabled={isCreatingBranch || !newBranchName.trim()}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-500 rounded-xl transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>{isCreatingBranch ? 'Создание...' : t.createBranchAction}</span>
-                </button>
-              </div>
-            </form>
-          </div>
+          <RemoteCommitsFeed refreshKey={commitsRefreshKey} />
         </div>
       )}
 
@@ -1020,34 +541,6 @@ export const GitHubPanel: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Confirmation Modal for Branch Deletion */}
-      <ConfirmationModal
-        isOpen={!!branchToDelete}
-        title={t.deleteBranchConfirmTitle}
-        message={
-          branchToDelete
-            ? t.deleteBranchConfirmDesc(
-                branchToDelete,
-                `${gitHubConfig.owner}/${gitHubConfig.repo}`
-              )
-            : ''
-        }
-        isDestructive={true}
-        confirmLabel="Да, удалить ветку"
-        cancelLabel="Отмена"
-        details={
-          branchToDelete
-            ? [
-                `Репозиторий: ${gitHubConfig.owner}/${gitHubConfig.repo}`,
-                `Ветка: ${branchToDelete}`,
-                `Внимание: все коммиты, существующие только в этой ветке, станут недоступны`
-              ]
-            : []
-        }
-        onConfirm={handleConfirmDeleteBranch}
-        onCancel={() => setBranchToDelete(null)}
-      />
     </div>
   );
 };
