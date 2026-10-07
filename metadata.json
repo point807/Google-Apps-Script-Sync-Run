@@ -1,6 +1,0 @@
-{
-  "name": "ScriptVault: Apps Script Sync & Git Hub",
-  "description": "Download, backup, and synchronize Google Apps Scripts from Sheets to Google Drive in real-time, with version control and GitHub integration.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

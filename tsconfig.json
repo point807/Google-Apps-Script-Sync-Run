@@ -5,23 +5,21 @@
     "useDefineForClassFields": false,
     "module": "ESNext",
     "types": ["vite/client"],
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
+    "strict": true,
     "moduleResolution": "bundler",
     "isolatedModules": true,
     "moduleDetection": "force",
     "allowJs": true,
     "jsx": "react-jsx",
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"],
+      "monaco-editor": ["./src/types/monaco-shim.d.ts"],
+      "monaco-editor/esm/vs/editor/editor.api": ["./src/types/monaco-shim.d.ts"]
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "include": ["src/**/*", "vite.config.ts", "vitest.config.ts"]
 }

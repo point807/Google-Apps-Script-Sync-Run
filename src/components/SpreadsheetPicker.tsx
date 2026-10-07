@@ -1,42 +1,35 @@
 import React, { useState, useEffect } from 'react';
+import { useAppStore } from '../store/appStore';
 import {
   FileSpreadsheet,
   Search,
   Code2,
   ExternalLink,
-  Download,
   Copy,
-  Sparkles,
   ArrowRight,
   RefreshCw,
-  AlertCircle,
   AlertTriangle,
-  HelpCircle,
   FolderSync,
   X,
   Info
 } from 'lucide-react';
-import { AppsScriptProject, GoogleDriveFile } from '../types';
-import { listGoogleSpreadsheets, listGoogleScripts, copySpreadsheetBackup } from '../services/googleDriveService';
-import { extractScriptId, extractSpreadsheetId, fetchAppsScriptProject } from '../services/appsScriptService';
+import { GoogleDriveFile } from '../types';
+import {
+  listGoogleSpreadsheets,
+  listGoogleScripts,
+  copySpreadsheetBackup
+} from '../services/googleDriveService';
+import { extractScriptId, fetchAppsScriptProject } from '../services/appsScriptService';
+import { useT } from '../i18n';
 
-interface SpreadsheetPickerProps {
-  accessToken: string | null;
-  currentProject: AppsScriptProject;
-  onSelectProject: (project: AppsScriptProject) => void;
-  onGoogleSignIn?: () => void;
-  lang: 'ru' | 'en';
-  onLog: (msg: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
-}
-
-export const SpreadsheetPicker: React.FC<SpreadsheetPickerProps> = ({
-  accessToken,
-  currentProject,
-  onSelectProject,
-  onGoogleSignIn,
-  lang,
-  onLog,
-}) => {
+export const SpreadsheetPicker: React.FC = () => {
+  const accessToken = useAppStore((s) => s.accessToken);
+  const currentProject = useAppStore((s) => s.currentProject);
+  const onSelectProject = useAppStore((s) => s.selectProject);
+  const onGoogleSignIn = useAppStore((s) => s.signIn);
+  const addLog = useAppStore((s) => s.addLog);
+  const onLog = (msg: string, type?: 'info' | 'success' | 'warning' | 'error') =>
+    addLog(msg, type ?? 'info', 'drive');
   const [spreadsheets, setSpreadsheets] = useState<GoogleDriveFile[]>([]);
   const [scripts, setScripts] = useState<GoogleDriveFile[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,60 +44,7 @@ export const SpreadsheetPicker: React.FC<SpreadsheetPickerProps> = ({
   const [modalScriptInput, setModalScriptInput] = useState('');
   const [loadingModalScript, setLoadingModalScript] = useState(false);
 
-  const t = {
-    ru: {
-      title: 'Google Таблицы и Apps Script',
-      subtitle: 'Подключение таблиц со встроенным кодом или автономных проектов Apps Script из вашего Google Диска',
-      tabs: {
-        spreadsheets: 'Таблицы Google Sheets',
-        scripts: 'Автономные Apps Script',
-        manual: 'Ввести ссылку / ID',
-      },
-      searchPlaceholder: 'Поиск по названию файлов...',
-      refresh: 'Обновить список',
-      demoTemplates: 'Готовые шаблоны скриптов для тестирования:',
-      noFilesFound: 'Файлы не найдены в вашем Google Диске.',
-      connectGoogleMsg: 'Войдите через Google в шапке сайта, чтобы просмотреть файлы с вашего Google Диска.',
-      currentActive: 'Текущий активный проект:',
-      loadProject: 'Загрузить скрипт',
-      connectScript: 'Подключить Apps Script',
-      loadingScript: 'Загрузка...',
-      openInSheets: 'Открыть в Sheets',
-      openInDrive: 'Диск',
-      exportSheet: 'Копия на Диске',
-      exporting: 'Копирование...',
-      customLabel: 'Вставьте ссылку на проект Apps Script или его Script ID:',
-      customHelper: 'Примеры:\n• https://script.google.com/home/projects/1abc.../edit\n• ID скрипта: 1aB2cD3eF4...',
-      fetchBtn: 'Получить код скрипта',
-      boundScriptNotice: 'Важно: идентификатор Google Таблицы отличается от Script ID прикрепленного к ней скрипта.',
-    },
-    en: {
-      title: 'Google Sheets & Apps Script',
-      subtitle: 'Connect spreadsheets with bound code or standalone Apps Script projects from Google Drive',
-      tabs: {
-        spreadsheets: 'Google Spreadsheets',
-        scripts: 'Standalone Scripts',
-        manual: 'Direct URL / Script ID',
-      },
-      searchPlaceholder: 'Search files by name...',
-      refresh: 'Refresh files',
-      demoTemplates: 'Quick-test templates ready to use:',
-      noFilesFound: 'No files found in your Google Drive.',
-      connectGoogleMsg: 'Sign in with Google in the top bar to access your real Drive files.',
-      currentActive: 'Currently loaded project:',
-      loadProject: 'Load Script',
-      connectScript: 'Connect Apps Script',
-      loadingScript: 'Loading...',
-      openInSheets: 'Open in Sheets',
-      openInDrive: 'Drive',
-      exportSheet: 'Drive Backup',
-      exporting: 'Copying...',
-      customLabel: 'Paste Apps Script editor URL or Script ID:',
-      customHelper: 'Examples:\n• https://script.google.com/home/projects/1abc.../edit\n• Script ID: 1aB2cD3eF4...',
-      fetchBtn: 'Fetch Project Code',
-      boundScriptNotice: 'Important: A spreadsheet ID is different from the Script ID of its attached Apps Script.',
-    },
-  }[lang];
+  const t = useT('sheets');
 
   const loadDriveFiles = async () => {
     if (!accessToken) return;
@@ -144,15 +84,13 @@ export const SpreadsheetPicker: React.FC<SpreadsheetPickerProps> = ({
 
     // Detect if user pasted a Google Sheet link instead of an Apps Script link
     if (customInput.includes('docs.google.com/spreadsheets/d/')) {
-      const match = customInput.match(/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-      const sheetId = match ? match[1] : '';
       setErrorMessage(
         `Вы вставили ссылку на Google Таблицу вместо ссылки на скрипт Apps Script.\n\n` +
-        `У Google Таблицы и встроенного в нее скрипта разные ID.\n` +
-        `Чтобы получить Script ID:\n` +
-        `1. Откройте таблицу в Google и выберите в меню: «Расширения» → «Apps Script».\n` +
-        `2. Скопируйте ссылку из адресной строки открывшегося редактора скрипта (https://script.google.com/home/projects/.../edit) или нажмите Настройки проекта (⚙️) и скопируйте «Идентификатор скрипта».\n` +
-        `3. Вставьте скопированный URL сюда.`
+          `У Google Таблицы и встроенного в нее скрипта разные ID.\n` +
+          `Чтобы получить Script ID:\n` +
+          `1. Откройте таблицу в Google и выберите в меню: «Расширения» → «Apps Script».\n` +
+          `2. Скопируйте ссылку из адресной строки открывшегося редактора скрипта (https://script.google.com/home/projects/.../edit) или нажмите Настройки проекта (⚙️) и скопируйте «Идентификатор скрипта».\n` +
+          `3. Вставьте скопированный URL сюда.`
       );
       setFetchingCustom(false);
       return;
@@ -165,10 +103,15 @@ export const SpreadsheetPicker: React.FC<SpreadsheetPickerProps> = ({
         onLog(`Запрос проекта Apps Script (${scriptId})...`, 'info');
         const project = await fetchAppsScriptProject(scriptId, accessToken);
         onSelectProject(project);
-        onLog(`Проект "${project.title}" успешно загружен (${project.files.length} файлов)`, 'success');
+        onLog(
+          `Проект "${project.title}" успешно загружен (${project.files.length} файлов)`,
+          'success'
+        );
       } else {
         onLog('Необходимо войти через Google для выгрузки реального скрипта', 'warning');
-        setErrorMessage('Пожалуйста, выполните вход через Google в правом верхнем углу для доступа к Apps Script API.');
+        setErrorMessage(
+          'Пожалуйста, выполните вход через Google в правом верхнем углу для доступа к Apps Script API.'
+        );
       }
     } catch (err: any) {
       setErrorMessage(err.message);
@@ -215,7 +158,9 @@ export const SpreadsheetPicker: React.FC<SpreadsheetPickerProps> = ({
     if (!selectedSheetModal || !modalScriptInput.trim() || !accessToken) return;
 
     if (modalScriptInput.includes('docs.google.com/spreadsheets/d/')) {
-      alert('Пожалуйста, укажите ссылку на Apps Script редактор (script.google.com) или Script ID, а не ссылку на таблицу.');
+      alert(
+        'Пожалуйста, укажите ссылку на Apps Script редактор (script.google.com) или Script ID, а не ссылку на таблицу.'
+      );
       return;
     }
 
@@ -376,9 +321,7 @@ export const SpreadsheetPicker: React.FC<SpreadsheetPickerProps> = ({
         {viewMode === 'manual' ? (
           <div className="space-y-4 pt-2">
             <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
-              <label className="block text-xs font-medium text-slate-300">
-                {t.customLabel}
-              </label>
+              <label className="block text-xs font-medium text-slate-300">{t.customLabel}</label>
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
@@ -414,9 +357,14 @@ export const SpreadsheetPicker: React.FC<SpreadsheetPickerProps> = ({
                 <div className="p-3 rounded-lg bg-amber-950/30 border border-amber-600/40 text-xs text-amber-200 flex items-start gap-2.5">
                   <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                   <div className="space-y-1">
-                    <span className="font-semibold">Вы вставили ссылку на Google Таблицу, а не на Apps Script!</span>
+                    <span className="font-semibold">
+                      Вы вставили ссылку на Google Таблицу, а не на Apps Script!
+                    </span>
                     <p className="text-[11px] text-amber-300/90 leading-relaxed">
-                      У Google Таблицы и встроенного в нее скрипта разные ID. Чтобы открыть прикрепленный скрипт, откройте таблицу в Google и в меню выберите: <b>«Расширения» → «Apps Script»</b>. Затем скопируйте ссылку из адресной строки редактора (https://script.google.com/home/projects/...).
+                      У Google Таблицы и встроенного в нее скрипта разные ID. Чтобы открыть
+                      прикрепленный скрипт, откройте таблицу в Google и в меню выберите:{' '}
+                      <b>«Расширения» → «Apps Script»</b>. Затем скопируйте ссылку из адресной
+                      строки редактора (https://script.google.com/home/projects/...).
                     </p>
                   </div>
                 </div>
@@ -426,7 +374,9 @@ export const SpreadsheetPicker: React.FC<SpreadsheetPickerProps> = ({
                 <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <div className="font-semibold">{t.boundScriptNotice}</div>
-                  <pre className="text-[11px] text-slate-400 font-mono whitespace-pre-wrap">{t.customHelper}</pre>
+                  <pre className="text-[11px] text-slate-400 font-mono whitespace-pre-wrap">
+                    {t.customHelper}
+                  </pre>
                 </div>
               </div>
             </div>
@@ -439,7 +389,8 @@ export const SpreadsheetPicker: React.FC<SpreadsheetPickerProps> = ({
                 <FolderSync className="w-8 h-8 text-slate-600 mx-auto" />
                 <p className="text-xs">{t.connectGoogleMsg}</p>
                 <p className="text-[11px] text-slate-500 max-w-md mx-auto">
-                  Вы можете исследовать код прямо сейчас, используя готовые шаблоны выше, либо подключить Google Диск для работы со своими таблицами.
+                  Вы можете исследовать код прямо сейчас, используя готовые шаблоны выше, либо
+                  подключить Google Диск для работы со своими таблицами.
                 </p>
               </div>
             ) : loading ? (
@@ -464,9 +415,16 @@ export const SpreadsheetPicker: React.FC<SpreadsheetPickerProps> = ({
                           <FileSpreadsheet className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
-                          <h4 className="text-sm font-semibold text-slate-200 truncate">{sheet.name}</h4>
+                          <h4 className="text-sm font-semibold text-slate-200 truncate">
+                            {sheet.name}
+                          </h4>
                           <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                            <span>ID таблицы: <code className="text-slate-400 font-mono">{sheet.id.slice(0, 12)}...</code></span>
+                            <span>
+                              ID таблицы:{' '}
+                              <code className="text-slate-400 font-mono">
+                                {sheet.id.slice(0, 12)}...
+                              </code>
+                            </span>
                             {sheet.modifiedTime && (
                               <span>Изм.: {new Date(sheet.modifiedTime).toLocaleDateString()}</span>
                             )}
@@ -527,9 +485,16 @@ export const SpreadsheetPicker: React.FC<SpreadsheetPickerProps> = ({
                         <Code2 className="w-5 h-5" />
                       </div>
                       <div className="min-w-0">
-                        <h4 className="text-sm font-semibold text-slate-200 truncate">{script.name}</h4>
+                        <h4 className="text-sm font-semibold text-slate-200 truncate">
+                          {script.name}
+                        </h4>
                         <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                          <span>Script ID: <code className="text-slate-400 font-mono">{script.id.slice(0, 14)}...</code></span>
+                          <span>
+                            Script ID:{' '}
+                            <code className="text-slate-400 font-mono">
+                              {script.id.slice(0, 14)}...
+                            </code>
+                          </span>
                           {script.modifiedTime && (
                             <span>Изм.: {new Date(script.modifiedTime).toLocaleDateString()}</span>
                           )}
@@ -590,13 +555,16 @@ export const SpreadsheetPicker: React.FC<SpreadsheetPickerProps> = ({
             {/* Modal Body */}
             <div className="p-5 space-y-4 text-xs">
               <p className="text-slate-300 leading-relaxed">
-                Чтобы загрузить встроенный код этой таблицы в ScriptVault, скопируйте ссылку на прикрепленный Apps Script:
+                Чтобы загрузить встроенный код этой таблицы в ScriptVault, скопируйте ссылку на
+                прикрепленный Apps Script:
               </p>
 
               {/* Step 1 */}
               <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-200">Шаг 1. Откройте таблицу в Google:</span>
+                  <span className="font-semibold text-slate-200">
+                    Шаг 1. Откройте таблицу в Google:
+                  </span>
                   <a
                     href={`https://docs.google.com/spreadsheets/d/${selectedSheetModal.id}/edit`}
                     target="_blank"
@@ -611,10 +579,15 @@ export const SpreadsheetPicker: React.FC<SpreadsheetPickerProps> = ({
 
               {/* Step 2 */}
               <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
-                <span className="font-semibold text-slate-200">Шаг 2. Откройте редактор скрипта:</span>
+                <span className="font-semibold text-slate-200">
+                  Шаг 2. Откройте редактор скрипта:
+                </span>
                 <p className="text-slate-400 leading-relaxed">
                   В верхнем меню открытой таблицы нажмите: <br />
-                  <b className="text-white bg-slate-800 px-1.5 py-0.5 rounded">Расширения (Extensions)</b> → <b className="text-white bg-slate-800 px-1.5 py-0.5 rounded">Apps Script</b>.
+                  <b className="text-white bg-slate-800 px-1.5 py-0.5 rounded">
+                    Расширения (Extensions)
+                  </b>{' '}
+                  → <b className="text-white bg-slate-800 px-1.5 py-0.5 rounded">Apps Script</b>.
                 </p>
               </div>
 
@@ -633,7 +606,8 @@ export const SpreadsheetPicker: React.FC<SpreadsheetPickerProps> = ({
                     className="w-full px-3.5 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
                   />
                   <div className="text-[11px] text-slate-500 mt-1">
-                    (Ссылка из адресной строки вкладки Apps Script или ⚙️ Настройки проекта → «Идентификатор скрипта»)
+                    (Ссылка из адресной строки вкладки Apps Script или ⚙️ Настройки проекта →
+                    «Идентификатор скрипта»)
                   </div>
                 </div>
 

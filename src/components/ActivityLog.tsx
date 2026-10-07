@@ -1,49 +1,29 @@
 import React, { useState } from 'react';
+import { useAppStore } from '../store/appStore';
 import {
   Terminal,
   Trash2,
   Download,
-  Filter,
   CheckCircle2,
   AlertTriangle,
   XCircle,
   Info,
-  Clock,
-  Layers
+  Clock
 } from 'lucide-react';
-import { SyncLogEntry } from '../types';
+import { useT } from '../i18n';
 
-interface ActivityLogProps {
-  logs: SyncLogEntry[];
-  onClearLogs: () => void;
-  lang: 'ru' | 'en';
-}
-
-export const ActivityLog: React.FC<ActivityLogProps> = ({ logs, onClearLogs, lang }) => {
+export const ActivityLog: React.FC = () => {
+  const logs = useAppStore((s) => s.logs);
+  const onClearLogs = useAppStore((s) => s.clearLogs);
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
-  const t = {
-    ru: {
-      title: 'Журнал активности и синхронизации',
-      subtitle: 'История всех операций Google Диска, Git, GitHub и мониторинга в реальном времени',
-      clear: 'Очистить журнал',
-      export: 'Экспорт журнала',
-      noLogs: 'Записей в журнале пока нет. Они будут появляться по мере работы системы.',
-      all: 'Все категории',
-    },
-    en: {
-      title: 'Live Activity & Sync Log',
-      subtitle: 'Full audit log of Drive snapshots, Git commits, GitHub pushes, and real-time watcher events',
-      clear: 'Clear Log',
-      export: 'Export Log',
-      noLogs: 'No log entries recorded yet.',
-      all: 'All Categories',
-    },
-  }[lang];
+  const t = useT('activity');
 
   const filteredLogs = logs.filter(
     (l) => filterCategory === 'all' || l.category === filterCategory
   );
+  const errorCount = logs.filter((l) => l.type === 'error').length;
+  const warningCount = logs.filter((l) => l.type === 'warning').length;
 
   const handleExportLogs = () => {
     const text = logs
@@ -104,6 +84,16 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({ logs, onClearLogs, lan
           <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2.5">
             <Terminal className="w-6 h-6 text-indigo-400" />
             {t.title}
+            {errorCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/30 text-xs font-semibold">
+                {t.errors}: {errorCount}
+              </span>
+            )}
+            {warningCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs font-semibold">
+                {t.warnings}: {warningCount}
+              </span>
+            )}
           </h2>
           <p className="mt-1 text-sm text-slate-400">{t.subtitle}</p>
         </div>

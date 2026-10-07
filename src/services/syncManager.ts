@@ -1,4 +1,6 @@
 import { AppsScriptProject, GitHubConfig, SyncLogEntry, SyncSettings } from '../types';
+import { mergeProjectFiles, SyncConflictInfo } from './syncMerge';
+import { loadCommits } from './gitService';
 import { createCommit } from './gitService';
 import { fetchAppsScriptProject } from './appsScriptService';
 import { getOrCreateBackupFolder, saveSnapshotToDrive } from './googleDriveService';
@@ -8,6 +10,7 @@ export class SyncCoordinator {
   private countdownTimer: any = null;
   private secondsRemaining: number = 30;
   private isRunning: boolean = false;
+  private abortController: AbortController | null = null;
   private onLogCallback?: (entry: SyncLogEntry) => void;
   private onStatusChangeCallback?: (status: {
     isSyncing: boolean;
@@ -16,6 +19,7 @@ export class SyncCoordinator {
     activeScriptsCount?: number;
   }) => void;
   private onProjectUpdatedCallback?: (updatedProject: AppsScriptProject) => void;
+  private onConflictCallback?: (info: SyncConflictInfo) => void;
 
   public setupListeners(
     onLog: (entry: SyncLogEntry) => void,
@@ -25,11 +29,13 @@ export class SyncCoordinator {
       countdown: number;
       activeScriptsCount?: number;
     }) => void,
-    onProjectUpdated?: (updatedProject: AppsScriptProject) => void
+    onProjectUpdated?: (updatedProject: AppsScriptProject) => void,
+    onConflict?: (info: SyncConflictInfo) => void
   ) {
     this.onLogCallback = onLog;
     this.onStatusChangeCallback = onStatusChange;
     this.onProjectUpdatedCallback = onProjectUpdated;
+    this.onConflictCallback = onConflict;
   }
 
   private log(
@@ -45,7 +51,7 @@ export class SyncCoordinator {
         type,
         category,
         message,
-        details,
+        details
       });
     }
   }
@@ -78,7 +84,7 @@ export class SyncCoordinator {
           isSyncing: this.isRunning,
           lastSyncedAt: null,
           countdown: this.secondsRemaining,
-          activeScriptsCount: targetProjects.length,
+          activeScriptsCount: targetProjects.length
         });
       }
     }, 1000);
@@ -104,6 +110,8 @@ export class SyncCoordinator {
   ): Promise<void> {
     if (this.isRunning) return;
     this.isRunning = true;
+    this.abortController = new AbortController();
+    const signal = this.abortController.signal;
 
     const targetProjects =
       settings.selectedScriptIds && settings.selectedScriptIds.length > 0
@@ -111,7 +119,11 @@ export class SyncCoordinator {
         : projects;
 
     if (targetProjects.length === 0) {
-      this.log('warning', 'realtime', 'Нет выбранных скриптов для синхронизации. Проверьте настройки.');
+      this.log(
+        'warning',
+        'realtime',
+        'Нет выбранных скриптов для синхронизации. Проверьте настройки.'
+      );
       this.isRunning = false;
       return;
     }
@@ -134,11 +146,19 @@ export class SyncCoordinator {
             settings.backupFolderName || 'ScriptVault_Backups'
           );
         } catch (e: any) {
-          this.log('error', 'drive', `Не удалось инициализировать папку на Google Диске: ${e.message}`);
+          this.log(
+            'error',
+            'drive',
+            `Не удалось инициализировать папку на Google Диске: ${e.message}`
+          );
         }
       }
 
       for (const project of targetProjects) {
+        if (signal.aborted) {
+          this.log('warning', 'realtime', 'Синхронизация отменена пользователем');
+          break;
+        }
         await this.syncSingleProject(
           project,
           accessToken,
@@ -150,14 +170,23 @@ export class SyncCoordinator {
       }
     } finally {
       this.isRunning = false;
+      this.abortController = null;
       if (this.onStatusChangeCallback) {
         this.onStatusChangeCallback({
           isSyncing: false,
           lastSyncedAt: new Date(),
           countdown: this.secondsRemaining,
-          activeScriptsCount: targetProjects.length,
+          activeScriptsCount: targetProjects.length
         });
       }
+    }
+  }
+
+  /** Abort the running sync at the next safe point. */
+  public cancelSync(): void {
+    if (this.abortController && this.isRunning) {
+      this.log('warning', 'realtime', 'Запрошена отмена синхронизации...');
+      this.abortController.abort();
     }
   }
 
@@ -179,8 +208,31 @@ export class SyncCoordinator {
           ...fresh,
           parentTitle: project.parentTitle,
           lastSyncTime: new Date().toISOString(),
-          lastSyncStatus: 'success',
+          lastSyncStatus: 'success'
         };
+
+        // Three-way merge (local vs remote vs last commit) — never silently
+        // overwrite files changed on both sides.
+        const history = await loadCommits(liveProject.scriptId);
+        const baselineFiles = history[0]?.files ?? null;
+        const merge = mergeProjectFiles(project.files, liveProject.files, baselineFiles);
+        if (merge.conflicts.length > 0) {
+          this.log(
+            'warning',
+            'apps_script',
+            `[${project.title}] Конфликт синхронизации (файлы изменены и локально, и в Apps Script): ${merge.conflicts.join(', ')}. Скрипт пропущен до разрешения конфликта.`
+          );
+          if (this.onConflictCallback) {
+            this.onConflictCallback({
+              localProject: project,
+              remoteProject: liveProject,
+              baselineFiles,
+              conflictedFiles: merge.conflicts
+            });
+          }
+          return;
+        }
+        liveProject = { ...liveProject, files: merge.files };
         if (this.onProjectUpdatedCallback) {
           this.onProjectUpdatedCallback(liveProject);
         }
@@ -194,10 +246,12 @@ export class SyncCoordinator {
     }
 
     // 2. Git Engine: check and commit changes
-    const commit = createCommit(
+    const commit = await createCommit(
       liveProject.scriptId,
       liveProject.files,
-      isManual ? `Manual snapshot of ${liveProject.title}` : `Auto-backup snapshot: ${liveProject.title}`,
+      isManual
+        ? `Manual snapshot of ${liveProject.title}`
+        : `Auto-backup snapshot: ${liveProject.title}`,
       'ScriptVault AutoSync',
       'main',
       { force: isManual }
@@ -221,10 +275,10 @@ export class SyncCoordinator {
             parentId: liveProject.parentId,
             commitId: commit.id,
             timestamp: new Date().toISOString(),
-            files: liveProject.files,
+            files: liveProject.files
           };
 
-          const fileId = await saveSnapshotToDrive(
+          await saveSnapshotToDrive(
             accessToken,
             targetFolderId,
             fileName,

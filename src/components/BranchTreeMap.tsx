@@ -7,10 +7,6 @@ import {
   Lock,
   Trash2,
   ExternalLink,
-  Plus,
-  RefreshCw,
-  GitCommit as GitCommitIcon,
-  Sparkles,
   ArrowUpRight,
   ArrowDownLeft,
   Equal
@@ -31,12 +27,32 @@ interface BranchTreeMapProps {
 }
 
 const BRANCH_COLORS = [
-  { stroke: '#818cf8', bg: 'bg-indigo-500/10', border: 'border-indigo-500/30', text: 'text-indigo-300' },
-  { stroke: '#34d399', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-300' },
-  { stroke: '#fbbf24', bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-300' },
+  {
+    stroke: '#818cf8',
+    bg: 'bg-indigo-500/10',
+    border: 'border-indigo-500/30',
+    text: 'text-indigo-300'
+  },
+  {
+    stroke: '#34d399',
+    bg: 'bg-emerald-500/10',
+    border: 'border-emerald-500/30',
+    text: 'text-emerald-300'
+  },
+  {
+    stroke: '#fbbf24',
+    bg: 'bg-amber-500/10',
+    border: 'border-amber-500/30',
+    text: 'text-amber-300'
+  },
   { stroke: '#f43f5e', bg: 'bg-rose-500/10', border: 'border-rose-500/30', text: 'text-rose-300' },
   { stroke: '#38bdf8', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', text: 'text-cyan-300' },
-  { stroke: '#c084fc', bg: 'bg-purple-500/10', border: 'border-purple-500/30', text: 'text-purple-300' },
+  {
+    stroke: '#c084fc',
+    bg: 'bg-purple-500/10',
+    border: 'border-purple-500/30',
+    text: 'text-purple-300'
+  }
 ];
 
 export const BranchTreeMap: React.FC<BranchTreeMapProps> = ({
@@ -49,14 +65,15 @@ export const BranchTreeMap: React.FC<BranchTreeMapProps> = ({
   onSwitchBranch,
   onCreateFromBranch,
   onDeleteBranch,
-  lang,
+  lang
 }) => {
   const [selectedBranch, setSelectedBranch] = useState<string>(activeBranch);
 
   const t = {
     ru: {
       treeTitle: 'Визуальная схема веток (Branch Tree & Graph)',
-      treeSubtitle: 'Графическое представление связей между основной (main), текущей (HEAD) и другими ветками разработки',
+      treeSubtitle:
+        'Графическое представление связей между основной (main), текущей (HEAD) и другими ветками разработки',
       mainTrunk: 'Основная ветка (Trunk)',
       activeHead: 'Активная ветка (HEAD)',
       devBranch: 'Ветка разработки',
@@ -70,11 +87,12 @@ export const BranchTreeMap: React.FC<BranchTreeMapProps> = ({
       behind: 'отстает от main на',
       commits: 'комм.',
       openInGitHub: 'Открыть на GitHub',
-      noBranches: 'В репозитории пока нет веток для отображения.',
+      noBranches: 'В репозитории пока нет веток для отображения.'
     },
     en: {
       treeTitle: 'Visual Branch Tree & Graph',
-      treeSubtitle: 'Graphical diagram of relationships between main trunk, current active branch, and development branches',
+      treeSubtitle:
+        'Graphical diagram of relationships between main trunk, current active branch, and development branches',
       mainTrunk: 'Default Trunk',
       activeHead: 'Active Branch (HEAD)',
       devBranch: 'Development Branch',
@@ -88,8 +106,8 @@ export const BranchTreeMap: React.FC<BranchTreeMapProps> = ({
       behind: 'behind main by',
       commits: 'comm.',
       openInGitHub: 'View on GitHub',
-      noBranches: 'No branches available to display in tree.',
-    },
+      noBranches: 'No branches available to display in tree.'
+    }
   }[lang];
 
   if (!branches || branches.length === 0) {
@@ -126,9 +144,7 @@ export const BranchTreeMap: React.FC<BranchTreeMapProps> = ({
           </div>
         </div>
 
-        <span className="text-[11px] text-slate-500 font-mono">
-          Всего веток: {branches.length}
-        </span>
+        <span className="text-[11px] text-slate-500 font-mono">Всего веток: {branches.length}</span>
       </div>
 
       {/* Interactive Visual Graph Canvas */}
@@ -137,9 +153,8 @@ export const BranchTreeMap: React.FC<BranchTreeMapProps> = ({
         <div
           className="absolute inset-0 opacity-[0.03] pointer-events-none"
           style={{
-            backgroundImage:
-              'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
-            backgroundSize: '24px 24px',
+            backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
+            backgroundSize: '24px 24px'
           }}
         />
 
@@ -149,10 +164,20 @@ export const BranchTreeMap: React.FC<BranchTreeMapProps> = ({
             const isActive = branch.name === activeBranch;
             const isSelected = selectedBranch === branch.name;
             const color = isMain
-              ? { stroke: '#10b981', bg: 'bg-emerald-500/10', border: 'border-emerald-500/40', text: 'text-emerald-300' }
+              ? {
+                  stroke: '#10b981',
+                  bg: 'bg-emerald-500/10',
+                  border: 'border-emerald-500/40',
+                  text: 'text-emerald-300'
+                }
               : isActive
-              ? { stroke: '#a855f7', bg: 'bg-purple-500/15', border: 'border-purple-500/50', text: 'text-purple-300' }
-              : BRANCH_COLORS[(index - 1) % BRANCH_COLORS.length];
+                ? {
+                    stroke: '#a855f7',
+                    bg: 'bg-purple-500/15',
+                    border: 'border-purple-500/50',
+                    text: 'text-purple-300'
+                  }
+                : BRANCH_COLORS[(index - 1) % BRANCH_COLORS.length];
 
             const comparison = comparisons[branch.name];
 
@@ -190,8 +215,8 @@ export const BranchTreeMap: React.FC<BranchTreeMapProps> = ({
                       isActive
                         ? 'bg-purple-600 border-purple-300 shadow-lg shadow-purple-500/50 ring-4 ring-purple-500/20'
                         : isMain
-                        ? 'bg-emerald-600 border-emerald-300 shadow-md shadow-emerald-500/30'
-                        : 'bg-slate-800 border-slate-600 group-hover:border-slate-400'
+                          ? 'bg-emerald-600 border-emerald-300 shadow-md shadow-emerald-500/30'
+                          : 'bg-slate-800 border-slate-600 group-hover:border-slate-400'
                     }`}
                   >
                     <GitBranch className="w-3.5 h-3.5 text-white" />
@@ -233,14 +258,18 @@ export const BranchTreeMap: React.FC<BranchTreeMapProps> = ({
                     <div className="flex items-center gap-3 text-xs text-slate-400 font-mono">
                       {branch.commit?.sha && (
                         <span>
-                          commit: <span className="text-slate-300 font-bold">{branch.commit.sha.slice(0, 7)}</span>
+                          commit:{' '}
+                          <span className="text-slate-300 font-bold">
+                            {branch.commit.sha.slice(0, 7)}
+                          </span>
                         </span>
                       )}
 
                       {/* Compare with main statistics */}
                       {!isMain && comparison && (
                         <span className="flex items-center gap-2 text-[11px]">
-                          {comparison.status === 'identical' || (comparison.aheadBy === 0 && comparison.behindBy === 0) ? (
+                          {comparison.status === 'identical' ||
+                          (comparison.aheadBy === 0 && comparison.behindBy === 0) ? (
                             <span className="text-emerald-400 flex items-center gap-0.5">
                               <Equal className="w-3 h-3" />
                               <span>{t.inSync}</span>
@@ -250,13 +279,17 @@ export const BranchTreeMap: React.FC<BranchTreeMapProps> = ({
                               {comparison.aheadBy > 0 && (
                                 <span className="text-emerald-400 flex items-center gap-0.5">
                                   <ArrowUpRight className="w-3 h-3" />
-                                  <span>+{comparison.aheadBy} {t.commits}</span>
+                                  <span>
+                                    +{comparison.aheadBy} {t.commits}
+                                  </span>
                                 </span>
                               )}
                               {comparison.behindBy > 0 && (
                                 <span className="text-amber-400 flex items-center gap-0.5">
                                   <ArrowDownLeft className="w-3 h-3" />
-                                  <span>-{comparison.behindBy} {t.commits}</span>
+                                  <span>
+                                    -{comparison.behindBy} {t.commits}
+                                  </span>
                                 </span>
                               )}
                             </>

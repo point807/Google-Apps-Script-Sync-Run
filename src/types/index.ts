@@ -68,15 +68,6 @@ export interface DriveBackupSnapshot {
   sizeBytes?: number;
 }
 
-export interface SavedGitHubToken {
-  id: string;
-  name: string;
-  token: string;
-  username?: string;
-  avatarUrl?: string;
-  addedAt: number;
-}
-
 export interface GitHubConfig {
   token: string;
   owner: string;

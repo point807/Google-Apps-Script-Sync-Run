@@ -1,71 +1,57 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useAppStore } from '../store/appStore';
+import { RunToolbar } from './RunToolbar';
+import { ExecutionConsole } from './ExecutionConsole';
+import { ProjectToolbar } from './ProjectToolbar';
+import { FileTabs } from './FileTabs';
+import { DeploymentManager } from './DeploymentManager';
 import {
   Code2,
   FileCode,
-  FileText,
   FilePlus,
-  Trash2,
-  Download,
   UploadCloud,
   GitCommit as GitCommitIcon,
-  Archive,
-  Check,
-  AlertCircle,
-  AlertTriangle,
-  ExternalLink,
-  Save,
-  Sparkles,
   Info,
   ShieldCheck,
   X,
   FileCheck,
   RefreshCw,
   Play,
-  Folder,
   Terminal,
   Github
 } from 'lucide-react';
-import { AppsScriptProject, ScriptFile, GitHubConfig } from '../types';
+import { ScriptFile } from '../types';
 import {
   downloadProjectAsZip,
-  downloadSingleFile,
   updateAppsScriptProject,
   fetchAppsScriptProject,
   runAppsScriptFunction,
-  extractScriptFunctionNames,
   extractFunctionsFromCode,
   extractAllScriptFunctions,
-  ScriptFunctionInfo,
   FunctionRunResult
 } from '../services/appsScriptService';
 import { pushFilesToGitHub } from '../services/githubService';
 import { createCommit, computeProjectDiff } from '../services/gitService';
 import { SyntaxEditor } from './SyntaxEditor';
+import { useT } from '../i18n';
 
-interface CodeWorkspaceProps {
-  project: AppsScriptProject;
-  onUpdateProject: (updated: AppsScriptProject) => void;
-  accessToken: string | null;
-  gitHubConfig?: GitHubConfig;
-  onUpdateGitHubConfig?: (cfg: GitHubConfig) => void;
-  lang: 'ru' | 'en';
-  onLog: (msg: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
-  onCommitCreated?: () => void;
-}
-
-export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
-  project,
-  onUpdateProject,
-  accessToken,
-  gitHubConfig,
-  onUpdateGitHubConfig,
-  lang,
-  onLog,
-  onCommitCreated,
-}) => {
+export const CodeWorkspace: React.FC = () => {
+  // rendered only when a project is selected (see App shell)
+  const project = useAppStore((s) => s.currentProject)!;
+  const onUpdateProject = useAppStore((s) => s.updateProject);
+  const accessToken = useAppStore((s) => s.accessToken);
+  const gitHubConfig = useAppStore((s) => s.gitHubConfig);
+  const onUpdateGitHubConfig = useAppStore((s) => s.updateGitHubConfig);
+  const activeFileName = useAppStore((s) => s.activeFileName);
+  const setActiveFileName = useAppStore((s) => s.setActiveFileName);
+  const lang = useAppStore((s) => s.lang);
+  const addLog = useAppStore((s) => s.addLog);
+  const onLog = (msg: string, type?: 'info' | 'success' | 'warning' | 'error') =>
+    addLog(msg, type ?? 'info', 'apps_script');
+  const onCommitCreated = () => addLog('Коммит зафиксирован вручную', 'success', 'git');
   const [selectedFileIndex, setSelectedFileIndex] = useState(0);
-  const [isEditing, setIsEditing] = useState(true);
   const [showAddFileModal, setShowAddFileModal] = useState(false);
+  const [showDeployments, setShowDeployments] = useState(false);
   const [newFileName, setNewFileName] = useState('');
   const [newFileType, setNewFileType] = useState<'SERVER_JS' | 'HTML'>('SERVER_JS');
 
@@ -106,6 +92,16 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
     }
   }, [project.scriptId, lastScriptId, project.files]);
 
+  // Jump to file requested by global search
+  useEffect(() => {
+    if (!activeFileName) return;
+    const idx = project.files.findIndex((f) => f.name === activeFileName);
+    if (idx !== -1) {
+      setSelectedFileIndex(idx);
+      setActiveFileName(null);
+    }
+  }, [activeFileName, project.files, setActiveFileName]);
+
   // Compute live diff against baseline
   const projectDiff = computeProjectDiff(baselineFiles, project.files);
   const modifiedFiles = projectDiff.files.filter((f) => f.status === 'modified');
@@ -116,62 +112,19 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
 
   const currentFile: ScriptFile | undefined = project.files[selectedFileIndex] || project.files[0];
 
-  const t = {
-    ru: {
-      downloadZip: 'Скачать ZIP архив',
-      downloadFile: 'Скачать текущий файл',
-      pushToScript: 'Отправить в Apps Script',
-      pushWarning: 'Внимание: это действие обновит код проекта в Google Apps Script!',
-      commitSnapshot: 'Зафиксировать в Git',
-      addFile: 'Добавить файл',
-      deleteFile: 'Удалить файл',
-      fileNamePlaceholder: 'Название файла (например, DatabaseHelper)',
-      createFileBtn: 'Создать файл',
-      cancel: 'Отмена',
-      editorTitle: 'Редактор кода проекта',
-      openInEditor: 'Открыть в Apps Script Editor',
-      lines: 'строк',
-      chars: 'симв.',
-      boundTo: 'Привязано к таблице:',
-      pushSuccess: 'Код успешно развернут в Google Apps Script!',
-      commitModalTitle: 'Создание нового Git-коммита',
-      commitMessagePlaceholder: 'Краткое описание внесенных изменений...',
-      createCommitBtn: 'Зафиксировать коммит',
-    },
-    en: {
-      downloadZip: 'Download .ZIP Archive',
-      downloadFile: 'Download Current File',
-      pushToScript: 'Push to Apps Script',
-      pushWarning: 'Warning: this will update the live code in Google Apps Script!',
-      commitSnapshot: 'Commit to Git',
-      addFile: 'New File',
-      deleteFile: 'Delete File',
-      fileNamePlaceholder: 'File name (e.g., DatabaseHelper)',
-      createFileBtn: 'Create File',
-      cancel: 'Cancel',
-      editorTitle: 'Project Code Workspace',
-      openInEditor: 'Open in Apps Script Editor',
-      lines: 'lines',
-      chars: 'chars',
-      boundTo: 'Bound to spreadsheet:',
-      pushSuccess: 'Code successfully deployed to Google Apps Script!',
-      commitModalTitle: 'Create New Git Commit',
-      commitMessagePlaceholder: 'Short description of your changes...',
-      createCommitBtn: 'Commit Changes',
-    },
-  }[lang];
+  const t = useT('code');
 
   const handleSourceChange = (newSource: string) => {
     const updatedFiles = [...project.files];
     if (updatedFiles[selectedFileIndex]) {
       updatedFiles[selectedFileIndex] = {
         ...updatedFiles[selectedFileIndex],
-        source: newSource,
+        source: newSource
       };
       onUpdateProject({
         ...project,
         files: updatedFiles,
-        lastModified: new Date().toISOString(),
+        lastModified: new Date().toISOString()
       });
     }
   };
@@ -180,7 +133,7 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
     e.preventDefault();
     if (!newFileName.trim()) return;
 
-    let cleanName = newFileName.trim().replace(/\.(gs|js|html|json)$/i, '');
+    const cleanName = newFileName.trim().replace(/\.(gs|js|html|json)$/i, '');
     const exists = project.files.some((f) => f.name.toLowerCase() === cleanName.toLowerCase());
     if (exists) {
       alert('Файл с таким именем уже существует!');
@@ -193,12 +146,12 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
       source:
         newFileType === 'SERVER_JS'
           ? `/**\n * ${cleanName}.gs\n */\nfunction ${cleanName.toLowerCase()}Init() {\n  Logger.log('Module ${cleanName} initialized.');\n}\n`
-          : `<!DOCTYPE html>\n<html>\n  <head>\n    <base target="_top">\n  </head>\n  <body>\n    <h3>${cleanName} UI</h3>\n  </body>\n</html>\n`,
+          : `<!DOCTYPE html>\n<html>\n  <head>\n    <base target="_top">\n  </head>\n  <body>\n    <h3>${cleanName} UI</h3>\n  </body>\n</html>\n`
     };
 
     const updated = {
       ...project,
-      files: [...project.files, newFile],
+      files: [...project.files, newFile]
     };
 
     onUpdateProject(updated);
@@ -222,6 +175,16 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
     onLog(`Файл ${file.name} удален из проекта`, 'warning');
   };
 
+  const handleAutoDraftCommit = async (reason: string) => {
+    try {
+      const msg = `Draft ${reason}: ${project.title} @ ${new Date().toLocaleTimeString()}`;
+      await createCommit(project.scriptId, project.files, msg, 'Auto Draft', 'main', { force: true });
+      addLog(`Автосохранён черновик перед ${reason}`, 'info', 'git');
+    } catch {
+      // draft failure is non-blocking
+    }
+  };
+
   const handleConfirmPush = async () => {
     if (!accessToken) {
       alert('Необходимо выполнить вход через Google для отправки в Apps Script API.');
@@ -229,12 +192,16 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
     }
 
     setIsPushing(true);
+    await handleAutoDraftCommit('пушем в Google');
     try {
       let finalFilesToSend = [...project.files];
 
       // Safe sync: if enabled, fetch remote project and preserve remote untouched files
       if (safeSyncCheck) {
-        onLog(`Безопасная проверка актуальной версии в Google Apps Script (${project.scriptId})...`, 'info');
+        onLog(
+          `Безопасная проверка актуальной версии в Google Apps Script (${project.scriptId})...`,
+          'info'
+        );
         try {
           const remote = await fetchAppsScriptProject(project.scriptId, accessToken);
           const localModifiedMap = new Map(modifiedFiles.map((m) => [m.fileName, true]));
@@ -265,7 +232,10 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
             finalFilesToSend = mergedFiles;
           }
         } catch (fetchErr) {
-          console.warn('Could not fetch remote for safe merge, proceeding with current snapshot:', fetchErr);
+          console.warn(
+            'Could not fetch remote for safe merge, proceeding with current snapshot:',
+            fetchErr
+          );
         }
       }
 
@@ -281,7 +251,7 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
       setBaselineFiles(finalFilesToSend);
       onUpdateProject({
         ...project,
-        files: finalFilesToSend,
+        files: finalFilesToSend
       });
 
       onLog(
@@ -292,9 +262,9 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
       setShowPushConfirm(false);
       alert(
         `Синхронизация с Google Apps Script успешно завершена!\n\n` +
-        `• Изменено файлов: ${modCount}\n` +
-        `• Сохранено без изменений: ${unchangedFiles.length}\n` +
-        `• Все изменения сохранены в вашем проекте Google.`
+          `• Изменено файлов: ${modCount}\n` +
+          `• Сохранено без изменений: ${unchangedFiles.length}\n` +
+          `• Все изменения сохранены в вашем проекте Google.`
       );
     } catch (err: any) {
       onLog(`Ошибка обновления Apps Script: ${err.message}`, 'error');
@@ -304,11 +274,18 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
     }
   };
 
-  const handleCreateManualCommit = () => {
+  const handleCreateManualCommit = async () => {
     const msg = commitMessage.trim() || `Manual snapshot of ${project.title}`;
-    const commit = createCommit(project.scriptId, project.files, msg, 'User Developer', 'main', {
-      force: true,
-    });
+    const commit = await createCommit(
+      project.scriptId,
+      project.files,
+      msg,
+      'User Developer',
+      'main',
+      {
+        force: true
+      }
+    );
     if (commit) {
       setBaselineFiles(project.files);
       onLog(`Создан коммит ${commit.id}: ${commit.message}`, 'success');
@@ -357,7 +334,8 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
     try {
       const originFile = currentFileFunctions.some((f) => f.name === selectedFunction)
         ? currentFile?.name
-        : otherFilesFunctions.find((f) => f.name === selectedFunction)?.fileName || currentFile?.name;
+        : otherFilesFunctions.find((f) => f.name === selectedFunction)?.fileName ||
+          currentFile?.name;
       onLog(`Запуск функции "${selectedFunction}()" из файла ${originFile}...`, 'info');
       const result = await runAppsScriptFunction(
         project.scriptId,
@@ -368,7 +346,10 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
       );
       setRunResult(result);
       if (result.status === 'success') {
-        onLog(`Функция "${selectedFunction}()" [${originFile}] успешно выполнена (${result.durationMs}ms)`, 'success');
+        onLog(
+          `Функция "${selectedFunction}()" [${originFile}] успешно выполнена (${result.durationMs}ms)`,
+          'success'
+        );
       } else {
         onLog(`Ошибка выполнения "${selectedFunction}()": ${result.error}`, 'error');
       }
@@ -378,7 +359,7 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
         error: e.message || String(e),
         logs: [],
         durationMs: 0,
-        source: 'local_runner',
+        source: 'local_runner'
       });
       onLog(`Ошибка выполнения: ${e.message}`, 'error');
     } finally {
@@ -389,17 +370,30 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
   // Save to GitHub in a dedicated folder
   const handleSaveToGitHub = async (customFolder?: string, customMessage?: string) => {
     if (!gitHubConfig || !gitHubConfig.token || !gitHubConfig.owner || !gitHubConfig.repo) {
-      alert('GitHub не подключен или не выбран репозиторий. Пожалуйста, откройте вкладку GitHub и подключите аккаунт.');
+      alert(
+        'GitHub не подключен или не выбран репозиторий. Пожалуйста, откройте вкладку GitHub и подключите аккаунт.'
+      );
       return;
     }
 
-    const folder = customFolder !== undefined ? customFolder : (githubFolderPath || project.parentTitle || project.title || '');
-    const cleanFolder = folder.replace(/[\/\\:*?"<>|]/g, '_').trim();
-    const msg = customMessage || githubCommitMsg.trim() || `Update ${project.title} (${project.parentTitle ? 'Table: ' + project.parentTitle : 'Google Sheets'}) [ScriptVault]`;
+    await handleAutoDraftCommit('пушем в GitHub');
+
+    const folder =
+      customFolder !== undefined
+        ? customFolder
+        : githubFolderPath || project.parentTitle || project.title || '';
+    const cleanFolder = folder.replace(/[\\/:*?"<>|]/g, '_').trim();
+    const msg =
+      customMessage ||
+      githubCommitMsg.trim() ||
+      `Update ${project.title} (${project.parentTitle ? 'Table: ' + project.parentTitle : 'Google Sheets'}) [ScriptVault]`;
 
     setIsPushingGitHub(true);
     try {
-      onLog(`Отправка файлов проекта "${project.title}" в GitHub (${gitHubConfig.owner}/${gitHubConfig.repo}, папка: "${cleanFolder || '/'}")`, 'info');
+      onLog(
+        `Отправка файлов проекта "${project.title}" в GitHub (${gitHubConfig.owner}/${gitHubConfig.repo}, папка: "${cleanFolder || '/'}")`,
+        'info'
+      );
       const res = await pushFilesToGitHub(
         gitHubConfig.token,
         gitHubConfig.owner,
@@ -414,13 +408,18 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
       if (onUpdateGitHubConfig && cleanFolder !== gitHubConfig.path) {
         onUpdateGitHubConfig({
           ...gitHubConfig,
-          path: cleanFolder,
+          path: cleanFolder
         });
       }
 
-      onLog(`Успешно сохранено на GitHub в папку "${cleanFolder || '/'}"! Коммит: ${res.commitSha.slice(0, 7)}`, 'success');
+      onLog(
+        `Успешно сохранено на GitHub в папку "${cleanFolder || '/'}"! Коммит: ${res.commitSha.slice(0, 7)}`,
+        'success'
+      );
       setShowGitHubSaveModal(false);
-      alert(`Скрипты успешно сохранены в репозиторий GitHub!\n\n• Папка: ${cleanFolder || 'корень репозитория'}\n• Ветка: ${gitHubConfig.branch || 'main'}\n• Коммит: ${res.commitSha.slice(0, 7)}`);
+      alert(
+        `Скрипты успешно сохранены в репозиторий GitHub!\n\n• Папка: ${cleanFolder || 'корень репозитория'}\n• Ветка: ${gitHubConfig.branch || 'main'}\n• Коммит: ${res.commitSha.slice(0, 7)}`
+      );
     } catch (err: any) {
       onLog(`Ошибка сохранения на GitHub: ${err.message}`, 'error');
       alert(`Ошибка сохранения на GitHub: ${err.message}`);
@@ -438,10 +437,18 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
 
       // 2. Save to GitHub
       if (gitHubConfig?.token && gitHubConfig?.owner && gitHubConfig?.repo) {
-        const folder = (githubFolderPath || project.parentTitle || project.title || '').replace(/[\/\\:*?"<>|]/g, '_').trim();
-        await handleSaveToGitHub(folder, `Save all: ${project.title} (${project.parentTitle || 'Google Sheets'})`);
+        const folder = (githubFolderPath || project.parentTitle || project.title || '')
+          .replace(/[\\/:*?"<>|]/g, '_')
+          .trim();
+        await handleSaveToGitHub(
+          folder,
+          `Save all: ${project.title} (${project.parentTitle || 'Google Sheets'})`
+        );
       } else {
-        onLog('Сохранено в Google! (GitHub не подключен — для сохранения в GitHub подключите его на вкладке GitHub)', 'info');
+        onLog(
+          'Сохранено в Google! (GitHub не подключен — для сохранения в GitHub подключите его на вкладке GitHub)',
+          'info'
+        );
       }
     } finally {
       setIsSavingEverywhere(false);
@@ -450,413 +457,72 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Top Banner & Action Controls */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-              <Code2 className="w-5 h-5 text-indigo-400" />
-              <span>{project.title}</span>
-            </h3>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-              ID: {project.scriptId.slice(0, 16)}...
-            </span>
-
-            {totalChangedCount > 0 ? (
-              <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 flex items-center gap-1.5 animate-pulse">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                <span>Изменено: {totalChangedCount} файл(ов)</span>
-              </span>
-            ) : (
-              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                <Check className="w-3 h-3" />
-                <span>Синхронизировано</span>
-              </span>
-            )}
-          </div>
-
-          {project.parentTitle && (
-            <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
-              <span>{t.boundTo}</span>
-              <span className="text-emerald-400 font-medium">{project.parentTitle}</span>
-            </p>
-          )}
-        </div>
-
-        {/* Action Buttons: Save to Google, Save to GitHub, Save Everywhere */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* 1. Save to Google Apps Script */}
-          <button
-            type="button"
-            onClick={() => setShowPushConfirm(true)}
-            className={`px-3 py-1.5 text-xs font-semibold text-white rounded-xl shadow-lg transition flex items-center gap-1.5 cursor-pointer ${
-              totalChangedCount > 0
-                ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30 ring-2 ring-indigo-500/50'
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
-            }`}
-            title="Сохранить изменения в Google Apps Script"
-          >
-            <UploadCloud className="w-3.5 h-3.5 text-indigo-300" />
-            <span>В Google</span>
-            {totalChangedCount > 0 && (
-              <span className="px-1.5 py-0.2 bg-amber-400 text-slate-950 font-bold rounded-full text-[10px]">
-                {totalChangedCount}
-              </span>
-            )}
-          </button>
-
-          {/* 2. Save to GitHub (folder-aware) */}
-          <button
-            type="button"
-            onClick={() => {
-              if (!gitHubConfig?.connected) {
-                alert('Сначала подключите GitHub на вкладке "GitHub".');
-                return;
-              }
-              setShowGitHubSaveModal(true);
-            }}
-            className="px-3 py-1.5 text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 hover:text-white rounded-xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer shadow-sm"
-            title="Сохранить скрипт в папку таблицы на GitHub"
-          >
-            <Github className="w-3.5 h-3.5 text-slate-200" />
-            <span>В GitHub</span>
-          </button>
-
-          {/* 3. Save Everywhere */}
-          <button
-            type="button"
-            onClick={handleSaveEverywhere}
-            disabled={isSavingEverywhere || isPushing}
-            className="px-3 py-1.5 text-xs font-semibold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-            title="Сохранить одновременно в Google Apps Script и в репозиторий GitHub"
-          >
-            <Save className="w-3.5 h-3.5 text-amber-400" />
-            <span>{isSavingEverywhere ? 'Сохранение...' : 'Везде'}</span>
-          </button>
-
-          {/* 4. Git Commit Snapshot */}
-          <button
-            type="button"
-            onClick={() => setShowCommitModal(true)}
-            className="px-2.5 py-1.5 text-xs font-semibold text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-xl transition flex items-center gap-1 cursor-pointer"
-            title="Зафиксировать локальный снимок Git"
-          >
-            <GitCommitIcon className="w-3.5 h-3.5" />
-            <span>Git</span>
-          </button>
-
-          {/* 5. Download ZIP */}
-          <button
-            type="button"
-            onClick={() => {
-              downloadProjectAsZip(project);
-              onLog(`Скачан ZIP-архив проекта ${project.title}`, 'info');
-            }}
-            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition cursor-pointer"
-            title="Скачать ZIP-архив проекта"
-          >
-            <Archive className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
+      <ProjectToolbar
+        project={project}
+        totalChangedCount={totalChangedCount}
+        boundToLabel={t.boundTo}
+        isPushing={isPushing}
+        isSavingEverywhere={isSavingEverywhere}
+        onPushToGoogle={() => setShowPushConfirm(true)}
+        onSaveToGitHub={() => {
+          if (!gitHubConfig?.connected) {
+            alert('Сначала подключите GitHub на вкладке "GitHub".');
+            return;
+          }
+          setShowGitHubSaveModal(true);
+        }}
+        onSaveEverywhere={handleSaveEverywhere}
+        onCreateCommit={() => setShowCommitModal(true)}
+        onDownloadZip={() => {
+          downloadProjectAsZip(project);
+          onLog(`Скачан ZIP-архив проекта ${project.title}`, 'info');
+        }}
+      />
 
       {/* Editor & File Tabs Container */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden flex flex-col">
-        {/* File Tabs */}
-        <div className="bg-slate-950/90 border-b border-slate-800/80 px-4 py-2 flex items-center justify-between gap-2 overflow-x-auto">
-          <div className="flex items-center gap-1.5">
-            {project.files.map((file, idx) => {
-              const isSelected = idx === selectedFileIndex;
-              const isJson = file.type === 'JSON' || file.name === 'appsscript';
-              const isHtml = file.type === 'HTML';
-              const isModified = modifiedFiles.some((m) => m.fileName === file.name);
-              const isAdded = addedFiles.some((a) => a.fileName === file.name);
+        <FileTabs
+          files={project.files}
+          selectedFileIndex={selectedFileIndex}
+          onSelectFile={setSelectedFileIndex}
+          modifiedFileNames={modifiedFiles.map((m) => m.fileName)}
+          addedFileNames={addedFiles.map((a) => a.fileName)}
+          onDeleteFile={handleDeleteFile}
+          onAddFile={() => setShowAddFileModal(true)}
+          currentFile={currentFile}
+          scriptId={project.scriptId}
+        />
 
-              return (
-                <div
-                  key={file.name}
-                  onClick={() => setSelectedFileIndex(idx)}
-                  className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition cursor-pointer border ${
-                    isSelected
-                      ? 'bg-slate-800 text-white border-slate-700 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border-transparent'
-                  }`}
-                >
-                  {isJson ? (
-                    <FileText className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  ) : isHtml ? (
-                    <FileCode className="w-3.5 h-3.5 text-orange-400 shrink-0" />
-                  ) : (
-                    <Code2 className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                  )}
-
-                  <span>{file.name}</span>
-                  <span className="text-[10px] text-slate-500 uppercase">
-                    {isJson ? '.json' : isHtml ? '.html' : '.gs'}
-                  </span>
-
-                  {/* Modified / Added Badges */}
-                  {isModified && (
-                    <span
-                      title="Файл изменен локально"
-                      className="w-2 h-2 rounded-full bg-amber-400 shrink-0"
-                    />
-                  )}
-                  {isAdded && (
-                    <span
-                      title="Новый файл"
-                      className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"
-                    />
-                  )}
-
-                  {project.files.length > 1 && file.name !== 'appsscript' && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteFile(idx);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 hover:text-red-400 p-0.5 rounded transition"
-                      title={t.deleteFile}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-
-            <button
-              type="button"
-              onClick={() => setShowAddFileModal(true)}
-              className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-900 rounded-lg transition border border-dashed border-slate-800 hover:border-indigo-500/50 cursor-pointer"
-              title={t.addFile}
-            >
-              <FilePlus className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0 text-xs text-slate-500 font-mono">
-            {currentFile && (
-              <>
-                <span>
-                  {currentFile.source.split('\n').length} {t.lines}
-                </span>
-                <span>•</span>
-                <span>
-                  {currentFile.source.length} {t.chars}
-                </span>
-              </>
-            )}
-            <a
-              href={`https://script.google.com/home/projects/${project.scriptId}/edit`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-slate-400 hover:text-indigo-400 transition flex items-center gap-1 font-sans text-xs ml-2"
-              title={t.openInEditor}
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Editor</span>
-            </a>
-          </div>
-        </div>
-
-        {/* Editor Runner Subheader / Toolbar - clearly shows which file you are running from! */}
-        <div className="bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
-          {/* Active File Context & Run Controls */}
-          <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Clear Active File Indicator */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono">
-              <span className="text-slate-400">Файл:</span>
-              <span className="font-bold text-emerald-400">{currentFile?.name}</span>
-              <span className="text-[10px] text-slate-500 uppercase">
-                {currentFile?.type === 'HTML' ? '.html' : currentFile?.type === 'JSON' ? '.json' : '.gs'}
-              </span>
-            </div>
-
-            {/* Function Selector for this File */}
-            <div className="flex items-center gap-2 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
-              <span className="text-xs text-slate-400">Функция:</span>
-              {currentFileFunctions.length > 0 || otherFilesFunctions.length > 0 ? (
-                <select
-                  value={selectedFunction}
-                  onChange={(e) => setSelectedFunction(e.target.value)}
-                  className="bg-transparent text-xs font-mono font-semibold text-white focus:outline-none cursor-pointer pr-1 max-w-[220px] truncate"
-                >
-                  {currentFileFunctions.length > 0 && (
-                    <optgroup label={`Функции в этом файле (${currentFile?.name})`}>
-                      {currentFileFunctions.map((fn) => (
-                        <option key={`curr-${fn.name}`} value={fn.name} className="bg-slate-900 text-emerald-300">
-                          ▶ {fn.name}()
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {otherFilesFunctions.length > 0 && (
-                    <optgroup label={`Другие файлы проекта`}>
-                      {otherFilesFunctions.map((fn) => (
-                        <option key={`other-${fn.fileName}-${fn.name}`} value={fn.name} className="bg-slate-900 text-slate-300">
-                          {fn.name}() [{fn.fileName}]
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  value={selectedFunction}
-                  onChange={(e) => setSelectedFunction(e.target.value)}
-                  placeholder="Имя функции (например: myFunction)"
-                  className="bg-transparent text-xs font-mono text-white placeholder-slate-500 focus:outline-none w-44"
-                />
-              )}
-            </div>
-
-            {/* Run Button in Editor! */}
-            <button
-              type="button"
-              onClick={handleExecuteFunction}
-              disabled={isRunningFunction || !selectedFunction}
-              className="px-3.5 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-md shadow-emerald-600/20 transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-              title={`Запустить функцию "${selectedFunction}()" из файла ${currentFile?.name}`}
-            >
-              {isRunningFunction ? (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>Выполнение...</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-3.5 h-3.5 fill-white" />
-                  <span>Запустить {selectedFunction ? `"${selectedFunction}()"` : 'скрипт'}</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Right side: Console toggle & Stats */}
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-slate-500">
-              Найдено в <span className="font-mono text-slate-400">{currentFile?.name}</span>: <strong className="text-emerald-400 font-mono">{currentFileFunctions.length}</strong> ф-й
-            </span>
-
-            {runResult && (
-              <button
-                type="button"
-                onClick={() => setShowRunConsole(!showRunConsole)}
-                className={`px-2.5 py-1 text-xs rounded-lg transition flex items-center gap-1.5 cursor-pointer border ${
-                  runResult.status === 'success'
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-                    : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'
-                }`}
-              >
-                <Terminal className="w-3.5 h-3.5" />
-                <span>
-                  {showRunConsole ? 'Скрыть консоль' : 'Результат'} ({runResult.durationMs}ms)
-                </span>
-              </button>
-            )}
-          </div>
-        </div>
+        <RunToolbar
+          currentFile={currentFile}
+          currentFileFunctions={currentFileFunctions}
+          otherFilesFunctions={otherFilesFunctions}
+          selectedFunction={selectedFunction}
+          setSelectedFunction={setSelectedFunction}
+          isRunningFunction={isRunningFunction}
+          onExecute={handleExecuteFunction}
+          runResult={runResult}
+          showRunConsole={showRunConsole}
+          onToggleConsole={() => setShowRunConsole(!showRunConsole)}
+          onOpenDeployments={() => setShowDeployments(true)}
+        />
 
         {/* Editor Area */}
         <div className="relative bg-slate-950 flex-1">
           {currentFile ? (
-            <SyntaxEditor
-              file={currentFile}
-              onChange={handleSourceChange}
-              lang={lang}
-            />
+            <SyntaxEditor file={currentFile} onChange={handleSourceChange} lang={lang} />
           ) : (
-            <div className="p-8 text-center text-slate-500 text-xs">
-              Нет выбранного файла
-            </div>
+            <div className="p-8 text-center text-slate-500 text-xs">Нет выбранного файла</div>
           )}
         </div>
 
-        {/* Integrated Live Execution Console Panel right inside the Editor */}
         {showRunConsole && runResult && (
-          <div className="border-t border-slate-800 bg-slate-950 p-4 space-y-3 animate-in fade-in">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <Terminal className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs font-bold text-white">
-                  Консоль выполнения:
-                </span>
-                <span className="text-xs font-mono text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                  [{currentFile?.name}] → {selectedFunction}()
-                </span>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1 ${
-                    runResult.status === 'success'
-                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                  }`}
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      runResult.status === 'success' ? 'bg-emerald-400' : 'bg-rose-400'
-                    }`}
-                  />
-                  <span>{runResult.status === 'success' ? 'Успешно' : 'Ошибка'}</span>
-                </span>
-                <span className="text-[11px] font-mono text-slate-400">
-                  {runResult.durationMs} ms
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-500 font-mono uppercase">
-                  {runResult.source === 'cloud' ? 'Google Cloud API' : 'Apps Script Runner'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowRunConsole(false)}
-                  className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition cursor-pointer"
-                  title="Скрыть консоль"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Error Message if any */}
-            {runResult.error && (
-              <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/40 text-xs text-rose-300 font-mono">
-                <div className="font-bold mb-1">Ошибка при выполнении:</div>
-                <div>{runResult.error}</div>
-              </div>
-            )}
-
-            {/* Return Value */}
-            {runResult.status === 'success' && (
-              <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <div className="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">
-                  Результат (Return Value):
-                </div>
-                <pre className="text-xs font-mono text-emerald-400 overflow-x-auto m-0">
-                  {typeof runResult.result === 'object'
-                    ? JSON.stringify(runResult.result, null, 2)
-                    : String(runResult.result)}
-                </pre>
-              </div>
-            )}
-
-            {/* Logger.log lines */}
-            <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
-              <div className="text-[10px] uppercase font-semibold text-slate-500 tracking-wider flex items-center justify-between">
-                <span>Журнал Logger.log ({runResult.logs.length} строк):</span>
-              </div>
-              <div className="space-y-1 font-mono text-xs max-h-48 overflow-y-auto">
-                {runResult.logs.map((logLine, idx) => (
-                  <div key={idx} className="text-slate-300 leading-relaxed border-l-2 border-slate-700 pl-2">
-                    {logLine}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <ExecutionConsole
+            currentFile={currentFile}
+            selectedFunction={selectedFunction}
+            runResult={runResult}
+            onClose={() => setShowRunConsole(false)}
+          />
         )}
       </div>
 
@@ -871,9 +537,7 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
 
             <form onSubmit={handleCreateFile} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Имя файла
-                </label>
+                <label className="block text-xs font-medium text-slate-300 mb-1">Имя файла</label>
                 <input
                   type="text"
                   value={newFileName}
@@ -885,9 +549,7 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Тип файла
-                </label>
+                <label className="block text-xs font-medium text-slate-300 mb-1">Тип файла</label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -1036,9 +698,7 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
                           {f.additions > 0 && (
                             <span className="text-emerald-400">+{f.additions}</span>
                           )}
-                          {f.deletions > 0 && (
-                            <span className="text-red-400">-{f.deletions}</span>
-                          )}
+                          {f.deletions > 0 && <span className="text-red-400">-{f.deletions}</span>}
                           <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px]">
                             изменен
                           </span>
@@ -1091,7 +751,11 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
                 <span>Почему Google API передает все файлы?</span>
               </div>
               <p className="text-[11px] text-slate-300">
-                В Google Apps Script REST API используется метод <code className="text-blue-300 font-mono">PUT /projects/.../content</code>, который полностью синхронизирует состояние проекта. Если передать только один измененный файл, Google сотрет все остальные файлы из проекта. Поэтому неизмененные файлы отправляются как есть для сохранения целостности скрипта.
+                В Google Apps Script REST API используется метод{' '}
+                <code className="text-blue-300 font-mono">PUT /projects/.../content</code>, который
+                полностью синхронизирует состояние проекта. Если передать только один измененный
+                файл, Google сотрет все остальные файлы из проекта. Поэтому неизмененные файлы
+                отправляются как есть для сохранения целостности скрипта.
               </p>
             </div>
 
@@ -1109,7 +773,8 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
                   Безопасное слияние (Safe Merge)
                 </span>
                 <span className="text-[11px] text-slate-400 block mt-0.5">
-                  Перед отправкой проверить удаленные файлы на Google Диске, чтобы не затереть изменения других пользователей в неизмененных файлах.
+                  Перед отправкой проверить удаленные файлы на Google Диске, чтобы не затереть
+                  изменения других пользователей в неизмененных файлах.
                 </span>
               </div>
             </label>
@@ -1160,11 +825,13 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
                   <Github className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">
-                    Сохранить скрипт в GitHub
-                  </h3>
+                  <h3 className="text-base font-bold text-white">Сохранить скрипт в GitHub</h3>
                   <p className="text-xs text-slate-400">
-                    Репозиторий: <span className="font-mono text-indigo-400">{gitHubConfig?.owner}/{gitHubConfig?.repo}</span> ({gitHubConfig?.branch || 'main'})
+                    Репозиторий:{' '}
+                    <span className="font-mono text-indigo-400">
+                      {gitHubConfig?.owner}/{gitHubConfig?.repo}
+                    </span>{' '}
+                    ({gitHubConfig?.branch || 'main'})
                   </p>
                 </div>
               </div>
@@ -1198,7 +865,7 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
                     <button
                       type="button"
                       onClick={() =>
-                        setGithubFolderPath(project.parentTitle!.replace(/[\/\\:*?"<>|]/g, '_'))
+                        setGithubFolderPath(project.parentTitle!.replace(/[\\/:*?"<>|]/g, '_'))
                       }
                       className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 transition cursor-pointer"
                     >
@@ -1207,9 +874,7 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
                   )}
                   <button
                     type="button"
-                    onClick={() =>
-                      setGithubFolderPath(project.title.replace(/[\/\\:*?"<>|]/g, '_'))
-                    }
+                    onClick={() => setGithubFolderPath(project.title.replace(/[\\/:*?"<>|]/g, '_'))}
                     className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 transition cursor-pointer"
                   >
                     📁 По скрипту: {project.title}
@@ -1239,7 +904,9 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
               </div>
 
               <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl text-[11px] text-slate-400 space-y-1">
-                <div className="text-slate-300 font-semibold">Файлы к отправке ({project.files.length}):</div>
+                <div className="text-slate-300 font-semibold">
+                  Файлы к отправке ({project.files.length}):
+                </div>
                 <div className="font-mono text-indigo-300 truncate">
                   {project.files.map((f) => f.name).join(', ')}
                 </div>
@@ -1311,17 +978,38 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
                   Выберите функцию для выполнения:
                 </label>
                 <div className="flex items-center gap-2">
-                  {availableFunctions.length > 0 ? (
+                  {currentFileFunctions.length > 0 || otherFilesFunctions.length > 0 ? (
                     <select
                       value={selectedFunction}
                       onChange={(e) => setSelectedFunction(e.target.value)}
                       className="flex-1 px-3.5 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white font-mono focus:outline-none focus:border-emerald-500"
                     >
-                      {availableFunctions.map((fn) => (
-                        <option key={fn} value={fn}>
-                          function {fn}()
-                        </option>
-                      ))}
+                      {currentFileFunctions.length > 0 && (
+                        <optgroup label={`Функции в этом файле (${currentFile?.name})`}>
+                          {currentFileFunctions.map((fn) => (
+                            <option
+                              key={`modal-curr-${fn.name}`}
+                              value={fn.name}
+                              className="bg-slate-900 text-emerald-300"
+                            >
+                              ▶ {fn.name}()
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {otherFilesFunctions.length > 0 && (
+                        <optgroup label={`Другие файлы проекта`}>
+                          {otherFilesFunctions.map((fn) => (
+                            <option
+                              key={`modal-other-${fn.fileName}-${fn.name}`}
+                              value={fn.name}
+                              className="bg-slate-900 text-slate-300"
+                            >
+                              {fn.name}() [{fn.fileName}]
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
                     </select>
                   ) : (
                     <input
@@ -1420,7 +1108,10 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
 
                     <div className="space-y-1 font-mono text-xs max-h-48 overflow-y-auto">
                       {runResult.logs.map((logLine, idx) => (
-                        <div key={idx} className="text-slate-300 leading-relaxed border-l-2 border-slate-700 pl-2">
+                        <div
+                          key={idx}
+                          className="text-slate-300 leading-relaxed border-l-2 border-slate-700 pl-2"
+                        >
                           {logLine}
                         </div>
                       ))}
@@ -1442,6 +1133,8 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
           </div>
         </div>
       )}
+
+      <DeploymentManager open={showDeployments} onClose={() => setShowDeployments(false)} />
     </div>
   );
 };

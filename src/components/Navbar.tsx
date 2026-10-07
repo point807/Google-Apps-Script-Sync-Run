@@ -1,86 +1,40 @@
-import React from 'react';
-import { RefreshCw, Github, Database, ShieldCheck, LogOut, CheckCircle2 } from 'lucide-react';
-import { User } from 'firebase/auth';
+import React, { useEffect } from 'react';
+import { useAppStore } from '../store/appStore';
+import { RefreshCw, Github, Database, LogOut, CheckCircle2, X, Search } from 'lucide-react';
+import { useT } from '../i18n';
 
-interface NavbarProps {
-  user: User | null;
-  hasGoogleToken: boolean;
-  onGoogleSignIn: () => void;
-  onLogout: () => void;
-  isLoggingIn: boolean;
-  gitHubConnected: boolean;
-  gitHubUsername?: string;
-  isSyncing: boolean;
-  countdown: number;
-  lastSyncedAt: Date | null;
-  activeScriptsCount?: number;
-  onManualSync: () => void;
-  activeTab: 'workspace' | 'sheets' | 'git' | 'github' | 'drive' | 'logs';
-  setActiveTab: (tab: 'workspace' | 'sheets' | 'git' | 'github' | 'drive' | 'logs') => void;
-  lang: 'ru' | 'en';
-  setLang: (lang: 'ru' | 'en') => void;
-}
+export const Navbar: React.FC = () => {
+  const user = useAppStore((s) => s.user);
+  const hasGoogleToken = useAppStore((s) => !!s.accessToken);
+  const onGoogleSignIn = useAppStore((s) => s.signIn);
+  const onLogout = useAppStore((s) => s.signOut);
+  const isLoggingIn = useAppStore((s) => s.isLoggingIn);
+  const gitHubConnected = useAppStore((s) => s.gitHubConfig.connected);
+  const isSyncing = useAppStore((s) => s.isSyncing);
+  const countdown = useAppStore((s) => s.countdown);
+  const lastSyncedAt = useAppStore((s) => s.lastSyncedAt);
+  const activeScriptsCount = useAppStore((s) => s.activeScriptsCount);
+  const onManualSync = useAppStore((s) => s.manualSync);
+  const onCancelSync = useAppStore((s) => s.cancelSync);
+  const activeTab = useAppStore((s) => s.activeTab);
+  const setActiveTab = useAppStore((s) => s.setActiveTab);
+  const lang = useAppStore((s) => s.lang);
+  const setLang = useAppStore((s) => s.setLang);
+  const isSearchOpen = useAppStore((s) => s.isSearchOpen);
+  const setSearchOpen = useAppStore((s) => s.setSearchOpen);
+  const t = useT('nav');
+  const searchT = useT('search');
 
-export const Navbar: React.FC<NavbarProps> = ({
-  user,
-  hasGoogleToken,
-  onGoogleSignIn,
-  onLogout,
-  isLoggingIn,
-  gitHubConnected,
-  gitHubUsername,
-  isSyncing,
-  countdown,
-  lastSyncedAt,
-  activeScriptsCount,
-  onManualSync,
-  activeTab,
-  setActiveTab,
-  lang,
-  setLang,
-}) => {
-  const t = {
-    ru: {
-      appName: 'ScriptVault',
-      tagline: 'Apps Script Sync & Git',
-      tabs: {
-        workspace: 'Код и Скрипты',
-        sheets: 'Таблицы Sheets',
-        git: 'История Git',
-        github: 'GitHub',
-        drive: 'Настройки и Диск',
-        logs: 'Журнал событий',
-      },
-      signIn: 'Войти через Google',
-      signingIn: 'Вход...',
-      liveWatcher: 'Синхронизация через',
-      syncNow: 'Синхронизировать',
-      syncing: 'Синхронизация...',
-      justNow: 'только что',
-      connectedDrive: 'Диск подключен',
-      connectedGH: 'GitHub активен',
-    },
-    en: {
-      appName: 'ScriptVault',
-      tagline: 'Apps Script Sync & Git',
-      tabs: {
-        workspace: 'Code & Scripts',
-        sheets: 'Google Sheets',
-        git: 'Git History',
-        github: 'GitHub',
-        drive: 'Sync & Drive',
-        logs: 'Event Log',
-      },
-      signIn: 'Sign in with Google',
-      signingIn: 'Signing in...',
-      liveWatcher: 'Sync in',
-      syncNow: 'Sync Now',
-      syncing: 'Syncing...',
-      justNow: 'just now',
-      connectedDrive: 'Drive Connected',
-      connectedGH: 'GitHub Active',
-    },
-  }[lang];
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen(!isSearchOpen);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isSearchOpen, setSearchOpen]);
 
   return (
     <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80">
@@ -172,6 +126,19 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Area */}
           <div className="flex items-center gap-2.5">
+            {/* Global search */}
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              title={`${searchT.open} (Ctrl+K)`}
+              className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-400 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl transition cursor-pointer"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">{searchT.open}</span>
+              <span className="hidden lg:inline-flex items-center gap-1 ml-1 px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono">
+                ⌘K
+              </span>
+            </button>
             {/* Real-time sync ticker & manual trigger */}
             <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800 text-xs">
               <span className="relative flex h-2 w-2">
@@ -189,6 +156,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="text-slate-300 font-mono text-[11px]">
                 {isSyncing ? t.syncing : `${t.liveWatcher} ${countdown}s`}
               </span>
+              {lastSyncedAt && (
+                <span
+                  title={lastSyncedAt.toLocaleString()}
+                  className="text-slate-500 font-mono text-[10px]"
+                >
+                  {lang === 'ru' ? 'обн.' : 'upd.'} {lastSyncedAt.toLocaleTimeString()}
+                </span>
+              )}
               {activeScriptsCount !== undefined && activeScriptsCount > 0 && (
                 <span
                   title="Количество отслеживаемых скриптов"
@@ -197,14 +172,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {activeScriptsCount} скр.
                 </span>
               )}
-              <button
-                onClick={onManualSync}
-                disabled={isSyncing}
-                title={t.syncNow}
-                className="p-1 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-md transition cursor-pointer"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-indigo-400' : ''}`} />
-              </button>
+              {isSyncing ? (
+                <button
+                  onClick={onCancelSync}
+                  title={t.cancelSync}
+                  className="p-1 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-md transition cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5 text-rose-400" />
+                </button>
+              ) : (
+                <button
+                  onClick={onManualSync}
+                  title={t.syncNow}
+                  className="p-1 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-md transition cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             {/* Language toggle */}

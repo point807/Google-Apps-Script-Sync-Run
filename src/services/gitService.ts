@@ -1,4 +1,5 @@
 import { GitCommit, ScriptFile } from '../types';
+import { commitsStorage } from './storage';
 
 export interface FileDiff {
   fileName: string;
@@ -33,7 +34,9 @@ export const generateCommitSha = (seed: string): string => {
     hash |= 0; // Convert to 32bit integer
   }
   const hex = Math.abs(hash).toString(16).padStart(8, '0');
-  const rand = Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
+  const rand = Math.floor(Math.random() * 0xffffff)
+    .toString(16)
+    .padStart(6, '0');
   return (hex + rand).slice(0, 10);
 };
 
@@ -52,7 +55,7 @@ export const computeLineDiff = (oldText: string, newText: string): DiffLine[] =>
         type: 'same',
         content: oldLines[i],
         oldLineNumber: i + 1,
-        newLineNumber: j + 1,
+        newLineNumber: j + 1
       });
       i++;
       j++;
@@ -80,7 +83,7 @@ export const computeLineDiff = (oldText: string, newText: string): DiffLine[] =>
           result.push({
             type: 'add',
             content: newLines[j],
-            newLineNumber: j + 1,
+            newLineNumber: j + 1
           });
           j++;
         }
@@ -90,7 +93,7 @@ export const computeLineDiff = (oldText: string, newText: string): DiffLine[] =>
           result.push({
             type: 'del',
             content: oldLines[i],
-            oldLineNumber: i + 1,
+            oldLineNumber: i + 1
           });
           i++;
         }
@@ -99,12 +102,12 @@ export const computeLineDiff = (oldText: string, newText: string): DiffLine[] =>
         result.push({
           type: 'del',
           content: oldLines[i],
-          oldLineNumber: i + 1,
+          oldLineNumber: i + 1
         });
         result.push({
           type: 'add',
           content: newLines[j],
-          newLineNumber: j + 1,
+          newLineNumber: j + 1
         });
         i++;
         j++;
@@ -116,7 +119,7 @@ export const computeLineDiff = (oldText: string, newText: string): DiffLine[] =>
     result.push({
       type: 'del',
       content: oldLines[i],
-      oldLineNumber: i + 1,
+      oldLineNumber: i + 1
     });
     i++;
   }
@@ -125,7 +128,7 @@ export const computeLineDiff = (oldText: string, newText: string): DiffLine[] =>
     result.push({
       type: 'add',
       content: newLines[j],
-      newLineNumber: j + 1,
+      newLineNumber: j + 1
     });
     j++;
   }
@@ -133,10 +136,7 @@ export const computeLineDiff = (oldText: string, newText: string): DiffLine[] =>
   return result;
 };
 
-export const computeProjectDiff = (
-  oldFiles: ScriptFile[],
-  newFiles: ScriptFile[]
-): ProjectDiff => {
+export const computeProjectDiff = (oldFiles: ScriptFile[], newFiles: ScriptFile[]): ProjectDiff => {
   const oldMap = new Map(oldFiles.map((f) => [f.name, f]));
   const newMap = new Map(newFiles.map((f) => [f.name, f]));
   const allNames = Array.from(new Set([...oldMap.keys(), ...newMap.keys()])).sort();
@@ -162,7 +162,7 @@ export const computeProjectDiff = (
         status: 'added',
         lines,
         additions,
-        deletions: 0,
+        deletions: 0
       });
     } else if (oldF && !newF) {
       // Deleted
@@ -176,7 +176,7 @@ export const computeProjectDiff = (
         status: 'deleted',
         lines,
         additions: 0,
-        deletions,
+        deletions
       });
     } else if (oldF && newF) {
       if (oldF.source !== newF.source) {
@@ -192,7 +192,7 @@ export const computeProjectDiff = (
           status: 'modified',
           lines,
           additions,
-          deletions,
+          deletions
         });
       } else {
         fileDiffs.push({
@@ -201,7 +201,7 @@ export const computeProjectDiff = (
           status: 'unchanged',
           lines: [],
           additions: 0,
-          deletions: 0,
+          deletions: 0
         });
       }
     }
@@ -212,32 +212,63 @@ export const computeProjectDiff = (
     totalAdditions,
     totalDeletions,
     filesChanged,
-    hasChanges: filesChanged > 0,
+    hasChanges: filesChanged > 0
   };
 };
 
-const getStorageKey = (scriptId: string) => `scriptvault_git_${scriptId}`;
+// Legacy localStorage key format (pre-IndexedDB builds)
+const getLegacyStorageKey = (scriptId: string) => `scriptvault_git_${scriptId}`;
 
-export const loadCommits = (scriptId: string): GitCommit[] => {
+/**
+ * One-time migration of commit history from localStorage to IndexedDB.
+ * The legacy copy is only removed after it is safely stored (or is garbage).
+ */
+const migrateLegacyCommits = async (scriptId: string): Promise<void> => {
+  const legacyKey = getLegacyStorageKey(scriptId);
+  const raw = localStorage.getItem(legacyKey);
+  if (!raw) return;
+
+  let parsed: unknown;
   try {
-    const raw = localStorage.getItem(getStorageKey(scriptId));
-    if (!raw) return [];
-    return JSON.parse(raw);
+    parsed = JSON.parse(raw);
   } catch (e) {
-    console.error('Failed to load commits from localStorage', e);
+    console.error('Corrupted legacy commit history, discarding', e);
+    localStorage.removeItem(legacyKey);
+    return;
+  }
+
+  if (Array.isArray(parsed)) {
+    try {
+      await commitsStorage.set(scriptId, parsed);
+      localStorage.removeItem(legacyKey);
+    } catch (e) {
+      // IndexedDB unavailable — keep the legacy copy so no history is lost
+      console.error('Failed to migrate legacy commit history', e);
+    }
+  } else {
+    localStorage.removeItem(legacyKey);
+  }
+};
+
+export const loadCommits = async (scriptId: string): Promise<GitCommit[]> => {
+  try {
+    await migrateLegacyCommits(scriptId);
+    return (await commitsStorage.get(scriptId)) ?? [];
+  } catch (e) {
+    console.error('Failed to load commits', e);
     return [];
   }
 };
 
-export const saveCommits = (scriptId: string, commits: GitCommit[]) => {
+export const saveCommits = async (scriptId: string, commits: GitCommit[]): Promise<void> => {
   try {
-    localStorage.setItem(getStorageKey(scriptId), JSON.stringify(commits));
+    await commitsStorage.set(scriptId, commits);
   } catch (e) {
-    console.error('Failed to save commits to localStorage', e);
+    console.error('Failed to save commits', e);
   }
 };
 
-export const createCommit = (
+export const createCommit = async (
   scriptId: string,
   files: ScriptFile[],
   message: string,
@@ -249,8 +280,8 @@ export const createCommit = (
     gitHubCommitSha?: string;
     force?: boolean;
   } = {}
-): GitCommit | null => {
-  const commits = loadCommits(scriptId);
+): Promise<GitCommit | null> => {
+  const commits = await loadCommits(scriptId);
   const lastCommit = commits.length > 0 ? commits[0] : null;
 
   // Check if there are changes compared to last commit
@@ -279,46 +310,46 @@ export const createCommit = (
       ? {
           filesChanged: diffSummary.filesChanged,
           additions: diffSummary.totalAdditions,
-          deletions: diffSummary.totalDeletions,
+          deletions: diffSummary.totalDeletions
         }
       : {
           filesChanged: files.length,
           additions: files.reduce((acc, f) => acc + f.source.split('\n').length, 0),
-          deletions: 0,
+          deletions: 0
         },
     syncedToDrive: options.syncedToDrive || false,
     syncedToGitHub: options.syncedToGitHub || false,
-    gitHubCommitSha: options.gitHubCommitSha,
+    gitHubCommitSha: options.gitHubCommitSha
   };
 
   const updated = [newCommit, ...commits];
-  saveCommits(scriptId, updated);
+  await saveCommits(scriptId, updated);
   return newCommit;
 };
 
-export const updateCommitSyncStatus = (
+export const updateCommitSyncStatus = async (
   scriptId: string,
   commitId: string,
   updates: { syncedToDrive?: boolean; syncedToGitHub?: boolean; gitHubCommitSha?: string }
-) => {
-  const commits = loadCommits(scriptId);
+): Promise<void> => {
+  const commits = await loadCommits(scriptId);
   const idx = commits.findIndex((c) => c.id === commitId);
   if (idx !== -1) {
     commits[idx] = { ...commits[idx], ...updates };
-    saveCommits(scriptId, commits);
+    await saveCommits(scriptId, commits);
   }
 };
 
-export const revertToCommit = (
+export const revertToCommit = async (
   scriptId: string,
   commitId: string,
   author: string = 'ScriptVault Developer'
-): { targetCommit: GitCommit; revertCommit: GitCommit } | null => {
-  const commits = loadCommits(scriptId);
+): Promise<{ targetCommit: GitCommit; revertCommit: GitCommit } | null> => {
+  const commits = await loadCommits(scriptId);
   const targetCommit = commits.find((c) => c.id === commitId);
   if (!targetCommit) return null;
 
-  const revertCommit = createCommit(
+  const revertCommit = await createCommit(
     scriptId,
     targetCommit.files,
     `Rollback: Revert to commit ${targetCommit.id} ("${targetCommit.message}")`,
@@ -330,4 +361,3 @@ export const revertToCommit = (
   if (!revertCommit) return null;
   return { targetCommit, revertCommit };
 };
-

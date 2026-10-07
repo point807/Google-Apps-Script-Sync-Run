@@ -49,7 +49,7 @@ function notifyWarehouse(orderId, status) {
   };
   Logger.log('Payload dispatched: ' + JSON.stringify(payload));
 }
-`,
+`
       },
       {
         name: 'ReportsHelper',
@@ -73,7 +73,7 @@ function exportCsvBackup() {
   const csv = sheet.getDataRange().getValues().map(r => r.join(',')).join('\\n');
   return csv;
 }
-`,
+`
       },
       {
         name: 'appsscript',
@@ -87,9 +87,9 @@ function exportCsvBackup() {
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/script.external_request"
   ]
-}`,
-      },
-    ],
+}`
+      }
+    ]
   },
   {
     scriptId: '1DEMO_LEADS_PIPELINE_SCRIPT_888',
@@ -130,7 +130,7 @@ function sendTelegramMessage(text) {
   };
   Logger.log('Sending message to Telegram: ' + text);
 }
-`,
+`
       },
       {
         name: 'appsscript',
@@ -140,8 +140,8 @@ function sendTelegramMessage(text) {
   "dependencies": {},
   "exceptionLogging": "STACKDRIVER",
   "runtimeVersion": "V8"
-}`,
-      },
-    ],
-  },
+}`
+      }
+    ]
+  }
 ];

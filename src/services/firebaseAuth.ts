@@ -7,16 +7,49 @@ import {
   signOut,
   User
 } from 'firebase/auth';
-import firebaseConfig from '../../firebase-applet-config.json';
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
+};
+
+const missingVars = Object.entries(firebaseConfig)
+  .filter(([, value]) => !value)
+  .map(([key]) => {
+    const envKey = `VITE_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}`;
+    return envKey;
+  });
+
+if (missingVars.length > 0) {
+  throw new Error(
+    `Missing Firebase configuration: ${missingVars.join(', ')}. ` +
+      'Copy .env.example to .env and fill in the values from your Firebase project.'
+  );
+}
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 
+// OAuth scopes requested at sign-in. Each one is needed for a concrete feature:
+// - drive            → search/list scripts and spreadsheets on Drive, create backup
+//                      folders and snapshot files, copy spreadsheets (Drive API v3);
+// - drive.scripts    → manage standalone Apps Script project files stored on Drive;
+// - spreadsheets     → read spreadsheet metadata when binding scripts to Sheets;
+// - script.projects  → read/write Apps Script project content and run functions
+//                      (Google Apps Script API);
+// - script.deployments → create versions and deployments (scripts.run requires
+//                      an API-executable deployment).
+// Narrowing these (e.g. to drive.file) would break listing and copying files the
+// app did not create — revisit if the feature set changes.
 export const SCOPES = [
   'https://www.googleapis.com/auth/drive',
   'https://www.googleapis.com/auth/drive.scripts',
   'https://www.googleapis.com/auth/spreadsheets',
   'https://www.googleapis.com/auth/script.projects',
+  'https://www.googleapis.com/auth/script.deployments'
 ];
 
 const provider = new GoogleAuthProvider();

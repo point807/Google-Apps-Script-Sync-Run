@@ -22,7 +22,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   isDestructive = false,
   details,
   onConfirm,
-  onCancel,
+  onCancel
 }) => {
   if (!isOpen) return null;
 
