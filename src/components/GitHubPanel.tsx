@@ -45,7 +45,7 @@ import { ConfirmationModal } from './ConfirmationModal';
 import { BranchTreeMap } from './BranchTreeMap';
 
 interface GitHubPanelProps {
-  project: AppsScriptProject;
+  project: AppsScriptProject | null;
   gitHubConfig: GitHubConfig;
   onUpdateConfig: (cfg: GitHubConfig) => void;
   lang: 'ru' | 'en';
@@ -486,6 +486,14 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
   };
 
   const handlePushCurrentCode = async () => {
+    if (!project) {
+      alert(
+        lang === 'ru'
+          ? 'Сначала подключите проект Apps Script.'
+          : 'Connect an Apps Script project first.'
+      );
+      return;
+    }
     if (!gitHubConfig.token || !gitHubConfig.owner || !gitHubConfig.repo) {
       alert('Пожалуйста, выберите репозиторий GitHub.');
       return;
@@ -529,7 +537,9 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
         gitHubConfig.token,
         newRepoName.trim(),
         isPrivate,
-        `Automated backup of ${project.title} via ScriptVault`
+        project
+          ? `Automated backup of ${project.title} via ScriptVault`
+          : 'Created via ScriptVault'
       );
 
       onLog(`Репозиторий ${created.full_name} успешно создан!`, 'success');
@@ -840,7 +850,8 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
                   className="w-full px-3.5 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-slate-100 font-mono focus:outline-none focus:border-indigo-500"
                 />
                 {/* Folder Suggestions */}
-                <div className="flex items-center gap-1.5 mt-2 flex-wrap text-[11px]">
+                {project && (
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap text-[11px]">
                   <span className="text-slate-500">Папка для скрипта:</span>
                   {project.parentTitle && (
                     <button
@@ -875,7 +886,8 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
                   >
                     Корень (/)
                   </button>
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

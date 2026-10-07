@@ -30,7 +30,7 @@ import { ConfirmationModal } from './ConfirmationModal';
 
 interface GitHistoryProps {
   allProjects: AppsScriptProject[];
-  currentProject: AppsScriptProject;
+  currentProject: AppsScriptProject | null;
   onSelectProject: (project: AppsScriptProject) => void;
   onRestoreVersion: (files: ScriptFile[], commitMessage: string, deployRemotely?: boolean) => void;
   accessToken: string | null;
@@ -48,9 +48,11 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
   onLog,
 }) => {
   // Script selector
-  const [selectedScriptId, setSelectedScriptId] = useState(currentProject.scriptId);
+  const [selectedScriptId, setSelectedScriptId] = useState(
+    currentProject?.scriptId ?? allProjects[0]?.scriptId ?? ''
+  );
   const activeScript =
-    allProjects.find((p) => p.scriptId === selectedScriptId) || currentProject;
+    allProjects.find((p) => p.scriptId === selectedScriptId) ?? currentProject;
 
   const [commits, setCommits] = useState<GitCommit[]>([]);
   const [selectedCommit, setSelectedCommit] = useState<GitCommit | null>(null);
@@ -132,17 +134,23 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
 
   // Refresh commits when active script changes
   const refreshCommits = () => {
+    if (!activeScript) {
+      setCommits([]);
+      return;
+    }
     const list = loadCommits(activeScript.scriptId);
     setCommits(list);
   };
 
   useEffect(() => {
-    setSelectedScriptId(currentProject.scriptId);
-  }, [currentProject.scriptId]);
+    if (currentProject) {
+      setSelectedScriptId(currentProject.scriptId);
+    }
+  }, [currentProject?.scriptId]);
 
   useEffect(() => {
     refreshCommits();
-  }, [selectedScriptId, activeScript.lastModified]);
+  }, [selectedScriptId, activeScript?.lastModified]);
 
   const handleCopySha = (sha: string) => {
     navigator.clipboard.writeText(sha);
@@ -160,7 +168,7 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
   };
 
   const handleExecuteRollback = async () => {
-    if (!commitToRollback) return;
+    if (!commitToRollback || !activeScript) return;
     setIsRollingBack(true);
 
     try {
@@ -197,6 +205,21 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
     const diffDays = Math.floor(diffHours / 24);
     return `${diffDays} дн. назад`;
   };
+
+  if (!activeScript) {
+    return (
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-10 shadow-xl text-center">
+        <h2 className="text-lg font-bold text-white">
+          {lang === 'ru' ? 'Нет подключённых проектов' : 'No connected projects'}
+        </h2>
+        <p className="mt-2 text-sm text-slate-400">
+          {lang === 'ru'
+            ? 'Подключите проект во вкладке «Таблицы», чтобы увидеть историю версий.'
+            : 'Connect a project in the “Sheets” tab to see version history.'}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

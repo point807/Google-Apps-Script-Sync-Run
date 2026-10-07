@@ -70,7 +70,7 @@
 5. при включённом Google Drive сохраняет JSON-снимок;
 6. при настроенном GitHub отправляет файлы проекта в выбранную ветку.
 
-Важно: синхронизация реализована через **периодический опрос API**, а не через push-события Google Apps Script. Поэтому термин «real-time» в интерфейсе означает частую автоматическую проверку с заданным интервалом.
+Важно: синхронизация реализована через **периодический опрос API**, а не через push-события Google Apps Script. Поэтому термин «real-time» означает частую автоматическую проверку с заданным интервалом.
 
 ## Требования
 
@@ -92,76 +92,80 @@
 - GitHub REST API и Git Data API;
 - JSZip;
 - PrismJS;
-- Lucide React;
-- Motion.
+- Lucide React.
 
 ## Установка
 
 ### 1. Клонировать репозиторий
 
-\`\`\`bash
+```bash
 git clone https://github.com/point807/Google-Apps-Script-Sync-Run.git
 cd Google-Apps-Script-Sync-Run
-\`\`\`
+```
 
 ### 2. Установить зависимости
 
 С Bun:
 
-\`\`\`bash
+```bash
 bun install
-\`\`\`
+```
 
 Или с npm:
 
-\`\`\`bash
+```bash
 npm install
-\`\`\`
+```
 
 ### 3. Настроить переменные окружения
 
-Скопируйте файл:
+Скопируйте шаблон и заполните значения из вашего Firebase-проекта
+(Firebase Console → Project settings → General → Your apps → SDK setup and configuration):
 
-\`\`\`bash
+```bash
 cp .env.example .env
-\`\`\`
+```
 
-В Windows можно просто создать \`.env\` на основе \`.env.example\`.
+Переменные:
 
-Текущий проект использует:
+| Переменная | Назначение |
+|---|---|
+| `VITE_FIREBASE_API_KEY` | API key веб-приложения Firebase |
+| `VITE_FIREBASE_AUTH_DOMAIN` | auth domain |
+| `VITE_FIREBASE_PROJECT_ID` | ID проекта Firebase |
+| `VITE_FIREBASE_STORAGE_BUCKET` | storage bucket |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | messaging sender ID |
+| `VITE_FIREBASE_APP_ID` | ID веб-приложения Firebase |
 
-- \`GEMINI_API_KEY\` — ключ Gemini;
-- \`APP_URL\` — URL развёрнутого приложения.
-
-Эти переменные предусмотрены шаблоном проекта. Основные операции ScriptVault с Google Apps Script, Google Drive и GitHub выполняются через API непосредственно из браузера.
+Без этих переменных приложение не запустится и покажет понятную ошибку.
 
 ### 4. Запустить приложение
 
 С Bun:
 
-\`\`\`bash
+```bash
 bun run dev
-\`\`\`
+```
 
 С npm:
 
-\`\`\`bash
+```bash
 npm run dev
-\`\`\`
+```
 
 Vite запускает dev-сервер на порту **3000**.
 
 Для production-сборки:
 
-\`\`\`bash
+```bash
 npm run build
-\`\`\`
+```
 
 Проверка TypeScript:
 
-\`\`\`bash
-npm run lint
-\`\`\`
+```bash
+npm run typecheck
+```
 
 ## Настройка Google
 
@@ -183,7 +187,7 @@ npm run lint
 1. что **Google Apps Script API** включён в Google Cloud Project;
 2. что для аккаунта разрешено использование Google Apps Script API;
 3. что после изменения разрешений выполнен повторный вход через Google;
-4. что браузер или блокировщик запросов не блокирует \`*.googleapis.com\`.
+4. что браузер или блокировщик запросов не блокирует `*.googleapis.com`.
 
 ### Google Sheets и Script ID
 
@@ -215,7 +219,7 @@ ID таблицы Google Sheets и **Script ID** прикреплённого к
 
 Для токена используйте только те разрешения, которые действительно нужны, и не передавайте токен другим пользователям.
 
-> Токен GitHub и настройки подключения сохраняются в \`localStorage\` браузера. Не используйте приложение с личным токеном на недоверенных или общедоступных компьютерах.
+> Токен GitHub и настройки подключения сохраняются в `localStorage` браузера. Не используйте приложение с личным токеном на недоверенных или общедоступных компьютерах.
 
 ## Google Drive Backup
 
@@ -230,11 +234,7 @@ ID таблицы Google Sheets и **Script ID** прикреплённого к
 
 Снимок проекта сохраняется в JSON и содержит метаданные проекта, идентификатор коммита и содержимое файлов.
 
-По умолчанию используется папка:
-
-\`ScriptVault_Backups\`
-
-Название и расположение папки можно изменить в интерфейсе.
+По умолчанию используется папка `ScriptVault_Backups`. Название и расположение папки можно изменить в интерфейсе.
 
 ## Запуск функций Apps Script
 
@@ -242,7 +242,7 @@ ID таблицы Google Sheets и **Script ID** прикреплённого к
 
 При наличии действующего Google OAuth access token сначала используется:
 
-\`POST https://script.googleapis.com/v1/scripts/{SCRIPT_ID}:run\`
+`POST https://script.googleapis.com/v1/scripts/{SCRIPT_ID}:run`
 
 Если удалённый запуск недоступен, приложение пытается использовать локальный runner.
 
@@ -252,18 +252,18 @@ ID таблицы Google Sheets и **Script ID** прикреплённого к
 
 Он предоставляет упрощённые mock-объекты для некоторых API, включая:
 
-- \`Logger\`;
-- \`SpreadsheetApp\`;
-- \`Utilities\`;
-- \`Session\`;
-- \`MailApp\`;
-- \`UrlFetchApp\`.
+- `Logger`;
+- `SpreadsheetApp`;
+- `Utilities`;
+- `Session`;
+- `MailApp`;
+- `UrlFetchApp`.
 
 Поэтому функции, использующие другие сервисы Apps Script или специфические возможности Google Workspace, могут работать только при удалённом запуске через Google Apps Script API.
 
 ## Локальная история версий
 
-История версий хранится в браузере пользователя через \`localStorage\`.
+История версий хранится в браузере пользователя через `localStorage`.
 
 Каждая версия содержит:
 
@@ -277,13 +277,13 @@ ID таблицы Google Sheets и **Script ID** прикреплённого к
 - краткую статистику изменений;
 - статусы синхронизации с Google Drive и GitHub.
 
-Git-история внутри приложения является **локальным механизмом версионирования**. Это не полноценный локальный Git-репозиторий на диске.
+Git-история внутри приложения — **локальный механизм версионирования**. Это не полноценный локальный Git-репозиторий на диске.
 
 GitHub-коммиты создаются отдельно через GitHub API.
 
 ## Структура проекта
 
-\`\`\`
+```
 .
 ├── src/
 │   ├── components/
@@ -291,9 +291,11 @@ GitHub-коммиты создаются отдельно через GitHub API.
 │   │   ├── BackupDrivePanel.tsx
 │   │   ├── BranchTreeMap.tsx
 │   │   ├── CodeWorkspace.tsx
+│   │   ├── ConfirmationModal.tsx
 │   │   ├── GitHistory.tsx
 │   │   ├── GitHubPanel.tsx
 │   │   ├── Navbar.tsx
+│   │   ├── ProjectEmptyState.tsx
 │   │   ├── SpreadsheetPicker.tsx
 │   │   └── SyntaxEditor.tsx
 │   │
@@ -310,59 +312,62 @@ GitHub-коммиты создаются отдельно через GitHub API.
 │   │   └── index.ts
 │   │
 │   ├── App.tsx
-│   └── main.tsx
+│   ├── main.tsx
+│   └── vite-env.d.ts
 │
-├── firebase-applet-config.json
 ├── .env.example
 ├── index.html
+├── LICENSE
+├── PLAN.md
 ├── package.json
 ├── tsconfig.json
 └── vite.config.ts
-\`\`\`
+```
 
 ### Основные модули
 
-**\`appsScriptService.ts\`**  
+**`appsScriptService.ts`**  
 Работа с Google Apps Script API: получение проекта, обновление содержимого, запуск функций, извлечение функций из кода и экспорт проекта в ZIP.
 
-**\`googleDriveService.ts\`**  
+**`googleDriveService.ts`**  
 Поиск файлов и папок на Google Drive, создание папок, сохранение снимков и создание копий таблиц.
 
-**\`gitService.ts\`**  
+**`gitService.ts`**  
 Локальное версионирование, создание коммитов, сравнение файлов, расчёт diff и откат версий.
 
-**\`githubService.ts\`**  
+**`githubService.ts`**  
 Работа с GitHub API: репозитории, ветки, коммиты, сравнение веток и публикация файлов проекта.
 
-**\`syncManager.ts\`**  
+**`syncManager.ts`**  
 Оркестрация автоматической и ручной синхронизации между Apps Script, локальной историей, Google Drive и GitHub.
 
-**\`firebaseAuth.ts\`**  
-Google OAuth через Firebase Authentication и получение access token для Google API.
+**`firebaseAuth.ts`**  
+Google OAuth через Firebase Authentication и получение access token для Google API. Конфигурация Firebase читается из `VITE_FIREBASE_*`-переменных окружения.
 
 ## Безопасность
 
 ScriptVault работает с доступом к пользовательским Google-ресурсам и GitHub-репозиториям, поэтому конфиденциальные данные требуют особого внимания.
 
 - Не добавляйте реальные API-ключи или токены в Git.
-- Используйте \`.env\` только локально.
+- Используйте `.env` только локально (файл в `.gitignore`).
 - Для GitHub используйте токен с минимально необходимыми правами.
 - Не используйте сохранённый GitHub token на общедоступном компьютере.
 - Firebase-конфигурация веб-приложения сама по себе не заменяет правила доступа Firebase и OAuth-настройки проекта.
 
-## Скрипты npm
+## Скрипты
 
-\`\`\`text
-npm run dev       # dev-сервер Vite на порту 3000
-npm run build     # production-сборка
-npm run preview   # просмотр production-сборки
-npm run lint      # проверка TypeScript
-npm run clean     # удалить dist и server.js
-\`\`\`
+```text
+npm run dev        # dev-сервер Vite на порту 3000
+npm run build      # production-сборка
+npm run preview    # просмотр production-сборки
+npm run typecheck  # проверка TypeScript
+npm run lint       # линтинг (сейчас — проверка TypeScript)
+npm run clean      # удалить dist
+```
 
 ## Технологическая схема
 
-\`\`\`
+```
                    ┌─────────────────────┐
                    │     ScriptVault     │
                    │   React + Vite      │
@@ -382,14 +387,16 @@ npm run clean     # удалить dist и server.js
                     │ localStorage     │
                     │ history/settings │
                     └──────────────────┘
-\`\`\`
+```
 
 ## Текущий статус
 
 Проект находится в стадии активной разработки. Интерфейс и основные сценарии синхронизации реализованы, но поведение некоторых Google Apps Script API и локального runner зависит от конкретного проекта и используемых сервисов Apps Script.
 
+План развития — в [PLAN.md](PLAN.md).
+
 Перед использованием в production рекомендуется отдельно проверить OAuth-конфигурацию, права GitHub token и сценарии восстановления из резервных копий.
 
 ## Лицензия
 
-В исходном коде проекта используется указание **Apache License 2.0 (SPDX)**. Для полного юридического оформления репозитория рекомендуется добавить отдельный файл \`LICENSE\` с текстом Apache License 2.0.
+Apache License 2.0 — см. [LICENSE](LICENSE).

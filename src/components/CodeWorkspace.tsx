@@ -1311,17 +1311,30 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
                   Выберите функцию для выполнения:
                 </label>
                 <div className="flex items-center gap-2">
-                  {availableFunctions.length > 0 ? (
+                  {currentFileFunctions.length > 0 || otherFilesFunctions.length > 0 ? (
                     <select
                       value={selectedFunction}
                       onChange={(e) => setSelectedFunction(e.target.value)}
                       className="flex-1 px-3.5 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white font-mono focus:outline-none focus:border-emerald-500"
                     >
-                      {availableFunctions.map((fn) => (
-                        <option key={fn} value={fn}>
-                          function {fn}()
-                        </option>
-                      ))}
+                      {currentFileFunctions.length > 0 && (
+                        <optgroup label={`Функции в этом файле (${currentFile?.name})`}>
+                          {currentFileFunctions.map((fn) => (
+                            <option key={`modal-curr-${fn.name}`} value={fn.name} className="bg-slate-900 text-emerald-300">
+                              ▶ {fn.name}()
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {otherFilesFunctions.length > 0 && (
+                        <optgroup label={`Другие файлы проекта`}>
+                          {otherFilesFunctions.map((fn) => (
+                            <option key={`modal-other-${fn.fileName}-${fn.name}`} value={fn.name} className="bg-slate-900 text-slate-300">
+                              {fn.name}() [{fn.fileName}]
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
                     </select>
                   ) : (
                     <input

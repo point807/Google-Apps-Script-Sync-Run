@@ -23,15 +23,16 @@ import { GitHistory } from './components/GitHistory';
 import { GitHubPanel } from './components/GitHubPanel';
 import { BackupDrivePanel } from './components/BackupDrivePanel';
 import { ActivityLog } from './components/ActivityLog';
+import { ProjectEmptyState } from './components/ProjectEmptyState';
 
 const DEFAULT_SYNC_SETTINGS: SyncSettings = {
-  autoSyncEnabled: true,
+  autoSyncEnabled: false,
   intervalSeconds: 30,
   backupToDrive: true,
   backupToGitHub: true,
   backupFolderName: 'ScriptVault_Backups',
   backupSpreadsheetCopies: true,
-  selectedScriptIds: SAMPLE_SHEETS_SCRIPTS.map((p) => p.scriptId),
+  selectedScriptIds: [],
 };
 
 const DEFAULT_GITHUB_CONFIG: GitHubConfig = {
@@ -61,18 +62,18 @@ export default function App() {
     } catch (e) {
       console.warn('Could not parse all_projects', e);
     }
-    return SAMPLE_SHEETS_SCRIPTS;
+    return [];
   });
 
-  // Currently active project in workspace
-  const [currentProject, setCurrentProject] = useState<AppsScriptProject>(() => {
+  // Currently active project in workspace (null until a project is connected or demo is loaded)
+  const [currentProject, setCurrentProject] = useState<AppsScriptProject | null>(() => {
     try {
       const saved = localStorage.getItem('scriptvault_current_project');
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.warn('Could not parse saved current project', e);
     }
-    return SAMPLE_SHEETS_SCRIPTS[0];
+    return null;
   });
 
   // Settings
@@ -82,7 +83,7 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (!parsed.selectedScriptIds) {
-          parsed.selectedScriptIds = SAMPLE_SHEETS_SCRIPTS.map((p) => p.scriptId);
+          parsed.selectedScriptIds = [];
         }
         return parsed;
       }
@@ -186,12 +187,12 @@ export default function App() {
           return [updatedProject, ...prev];
         });
 
-        if (updatedProject.scriptId === currentProject.scriptId) {
+        if (updatedProject.scriptId === currentProject?.scriptId) {
           setCurrentProject(updatedProject);
         }
       }
     );
-  }, [currentProject.scriptId]);
+  }, [currentProject?.scriptId]);
 
   // 3. Start or update auto-sync watcher with multi-script support
   useEffect(() => {
@@ -234,6 +235,7 @@ export default function App() {
 
   // Persist current project
   useEffect(() => {
+    if (!currentProject) return;
     try {
       localStorage.setItem('scriptvault_current_project', JSON.stringify(currentProject));
     } catch (e) {
@@ -305,6 +307,7 @@ export default function App() {
     commitMessage: string,
     deployRemotely: boolean = false
   ) => {
+    if (!currentProject) return;
     const updated: AppsScriptProject = {
       ...currentProject,
       files,
@@ -333,6 +336,19 @@ export default function App() {
       'git'
     );
 
+    setActiveTab('workspace');
+  };
+
+  const handleLoadDemo = () => {
+    setAllProjects(SAMPLE_SHEETS_SCRIPTS);
+    setCurrentProject(SAMPLE_SHEETS_SCRIPTS[0]);
+    addLog(
+      lang === 'ru'
+        ? 'Загружены демо-проекты (данные не являются реальными)'
+        : 'Demo projects loaded (data is not real)',
+      'info',
+      'git'
+    );
     setActiveTab('workspace');
   };
 
@@ -395,25 +411,32 @@ export default function App() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'workspace' && (
-          <CodeWorkspace
-            project={currentProject}
-            onUpdateProject={(updated) => {
-              setCurrentProject(updated);
-              setAllProjects((prev) =>
-                prev.map((p) => (p.scriptId === updated.scriptId ? updated : p))
-              );
-            }}
-            gitHubConfig={gitHubConfig}
-            onUpdateGitHubConfig={handleUpdateGitHubConfig}
-            accessToken={accessToken}
-            lang={lang}
-            onLog={(msg, type) => addLog(msg, type, 'apps_script')}
-            onCommitCreated={() => {
-              addLog('Коммит зафиксирован вручную', 'success', 'git');
-            }}
-          />
-        )}
+        {activeTab === 'workspace' &&
+          (currentProject ? (
+            <CodeWorkspace
+              project={currentProject}
+              onUpdateProject={(updated) => {
+                setCurrentProject(updated);
+                setAllProjects((prev) =>
+                  prev.map((p) => (p.scriptId === updated.scriptId ? updated : p))
+                );
+              }}
+              gitHubConfig={gitHubConfig}
+              onUpdateGitHubConfig={handleUpdateGitHubConfig}
+              accessToken={accessToken}
+              lang={lang}
+              onLog={(msg, type) => addLog(msg, type, 'apps_script')}
+              onCommitCreated={() => {
+                addLog('Коммит зафиксирован вручную', 'success', 'git');
+              }}
+            />
+          ) : (
+            <ProjectEmptyState
+              lang={lang}
+              onLoadDemo={handleLoadDemo}
+              onGoConnect={() => setActiveTab('sheets')}
+            />
+          ))}
 
         {activeTab === 'sheets' && (
           <SpreadsheetPicker
@@ -476,7 +499,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <span className="font-semibold text-slate-400">ScriptVault</span>
             <span>—</span>
-            <span>Google Apps Script Sync, Google Drive Backup & Git Hub Version Control</span>
+            <span>Google Apps Script Sync, Google Drive Backup & GitHub Version Control</span>
           </div>
           <div className="flex items-center gap-4 text-[11px]">
             <span>Google Drive API v3</span>

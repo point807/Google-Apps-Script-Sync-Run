@@ -22,7 +22,7 @@ import { extractScriptId, extractSpreadsheetId, fetchAppsScriptProject } from '.
 
 interface SpreadsheetPickerProps {
   accessToken: string | null;
-  currentProject: AppsScriptProject;
+  currentProject: AppsScriptProject | null;
   onSelectProject: (project: AppsScriptProject) => void;
   onGoogleSignIn?: () => void;
   lang: 'ru' | 'en';

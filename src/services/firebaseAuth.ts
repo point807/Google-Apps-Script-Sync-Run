@@ -7,7 +7,28 @@ import {
   signOut,
   User
 } from 'firebase/auth';
-import firebaseConfig from '../../firebase-applet-config.json';
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+};
+
+const missingVars = Object.entries(firebaseConfig)
+  .filter(([, value]) => !value)
+  .map(([key]) => {
+    const envKey = `VITE_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}`;
+    return envKey;
+  });
+
+if (missingVars.length > 0) {
+  throw new Error(
+    `Missing Firebase configuration: ${missingVars.join(', ')}. ` +
+      'Copy .env.example to .env and fill in the values from your Firebase project.'
+  );
+}
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
