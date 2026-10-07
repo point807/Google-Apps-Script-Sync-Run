@@ -14,9 +14,12 @@
     "allowJs": true,
     "jsx": "react-jsx",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "monaco-editor": ["./src/types/monaco-shim.d.ts"],
+      "monaco-editor/esm/vs/editor/editor.api": ["./src/types/monaco-shim.d.ts"]
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "include": ["src/**/*", "vite.config.ts", "vitest.config.ts"]
 }
