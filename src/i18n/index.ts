@@ -61,6 +61,14 @@ export const messages = {
       snapshotsSection: 'Снимки резервных копий в текущей папке',
       refreshSnapshots: 'Обновить список',
       noSnapshots: 'В выбранной папке пока нет файлов снимков.',
+      restoreBtn: 'Восстановить',
+      restoreModalTitle: 'Восстановить из снимка?',
+      restoreModalDesc:
+        'Файлы текущего проекта будут заменены содержимым снимка. В локальной истории Git будет создан коммит восстановления (откат возможен).',
+      restoreDeployLabel:
+        'Также загрузить восстановленный код в Google Apps Script (перезапишет удаленный скрипт)',
+      restoreConfirmBtn: 'Восстановить',
+      restoringBtn: 'Восстановление...',
       browseModalTitle: 'Выбор папки на Google Диске',
       folderSearchPlaceholder: 'Поиск папок по названию...',
       selectFolderBtn: 'Выбрать эту папку',
@@ -251,6 +259,14 @@ export const messages = {
       snapshotsSection: 'Backup Snapshots in Current Folder',
       refreshSnapshots: 'Refresh Snapshots',
       noSnapshots: 'No snapshot files found in the selected folder yet.',
+      restoreBtn: 'Restore',
+      restoreModalTitle: 'Restore from snapshot?',
+      restoreModalDesc:
+        'Current project files will be replaced with the snapshot content. A restore commit will be created in local Git history (reversible).',
+      restoreDeployLabel:
+        'Also push restored code to Google Apps Script (overwrites the remote script)',
+      restoreConfirmBtn: 'Restore',
+      restoringBtn: 'Restoring...',
       browseModalTitle: 'Select Google Drive Folder',
       folderSearchPlaceholder: 'Search folders by name...',
       selectFolderBtn: 'Select this folder',

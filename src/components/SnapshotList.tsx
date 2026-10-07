@@ -3,21 +3,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import React, { useState, useEffect } from 'react';
-import { Calendar, FileJson, Layers, RefreshCw } from 'lucide-react';
+import { Calendar, FileJson, Layers, RefreshCw, RotateCcw } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { useT } from '../i18n';
 import { DriveBackupSnapshot } from '../types';
 import {
   getOrCreateBackupFolder,
   listDriveSnapshots,
-  downloadDriveFileContent
+  downloadDriveFileContent,
+  parseSnapshotPayload
 } from '../services/googleDriveService';
+import { updateAppsScriptProject } from '../services/appsScriptService';
 
 /** Stored Drive snapshots with a preview modal. */
 export const SnapshotList: React.FC = () => {
   const accessToken = useAppStore((s) => s.accessToken);
   const settings = useAppStore((s) => s.syncSettings);
   const onUpdateSettings = useAppStore((s) => s.updateSettings);
+  const onRestoreVersion = useAppStore((s) => s.restoreVersion);
   const addLog = useAppStore((s) => s.addLog);
   const onLog = (msg: string, type?: 'info' | 'success' | 'warning' | 'error') =>
     addLog(msg, type ?? 'info', 'drive');
@@ -27,6 +30,9 @@ export const SnapshotList: React.FC = () => {
   const [loadingSnapshots, setLoadingSnapshots] = useState(false);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [previewFileName, setPreviewFileName] = useState('');
+  const [snapshotToRestore, setSnapshotToRestore] = useState<DriveBackupSnapshot | null>(null);
+  const [restoreDeploy, setRestoreDeploy] = useState(false);
+  const [restoring, setRestoring] = useState(false);
 
   const loadSnapshots = async () => {
     if (!accessToken) return;
@@ -52,6 +58,37 @@ export const SnapshotList: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, settings.backupFolderId, settings.backupFolderName]);
+
+  const handleConfirmRestore = async () => {
+    const snapshot = snapshotToRestore;
+    if (!snapshot || !accessToken) return;
+    setRestoring(true);
+    try {
+      onLog(`Загрузка снимка ${snapshot.fileName} для восстановления...`, 'info');
+      const text = await downloadDriveFileContent(accessToken, snapshot.fileId);
+      const payload = parseSnapshotPayload(text);
+      const message = `Восстановление из снимка Drive: ${snapshot.fileName}`;
+      onRestoreVersion(payload.files, message, restoreDeploy);
+      if (restoreDeploy && !payload.scriptId.startsWith('1DEMO_')) {
+        onLog(
+          `Отправка восстановленного кода в Google Apps Script (${payload.scriptId})...`,
+          'info'
+        );
+        await updateAppsScriptProject(payload.scriptId, payload.files, accessToken);
+      }
+      onLog(
+        `Проект восстановлен из снимка ${snapshot.fileName} (${payload.files.length} файлов)`,
+        'success'
+      );
+      setSnapshotToRestore(null);
+      setRestoreDeploy(false);
+    } catch (err: any) {
+      onLog(`Ошибка восстановления: ${err.message}`, 'error');
+      alert(`Ошибка: ${err.message}`);
+    } finally {
+      setRestoring(false);
+    }
+  };
 
   const handlePreviewSnapshot = async (snapshot: DriveBackupSnapshot) => {
     if (!accessToken) return;
@@ -125,6 +162,17 @@ export const SnapshotList: React.FC = () => {
 
                   <button
                     type="button"
+                    onClick={() => {
+                      setSnapshotToRestore(s);
+                      setRestoreDeploy(false);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 hover:text-indigo-200 border border-indigo-500/30 transition cursor-pointer text-xs"
+                  >
+                    {t.restoreBtn}
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => handlePreviewSnapshot(s)}
                     className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer text-xs"
                   >
@@ -137,7 +185,6 @@ export const SnapshotList: React.FC = () => {
         )}
       </div>
 
-      {/* Modal: Google Drive Folder Picker & Creator */}
       {/* Preview Modal */}
       {previewContent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in">
@@ -159,6 +206,48 @@ export const SnapshotList: React.FC = () => {
               <pre className="text-xs font-mono text-slate-300 whitespace-pre-wrap">
                 {previewContent}
               </pre>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restore Confirmation Modal */}
+      {snapshotToRestore && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4">
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <RotateCcw className="w-4 h-4 text-indigo-400" />
+              {t.restoreModalTitle}
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">{t.restoreModalDesc}</p>
+            <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-slate-300 truncate">
+              {snapshotToRestore.fileName}
+            </div>
+            <label className="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={restoreDeploy}
+                onChange={(e) => setRestoreDeploy(e.target.checked)}
+                className="mt-0.5 accent-indigo-500"
+              />
+              <span>{t.restoreDeployLabel}</span>
+            </label>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setSnapshotToRestore(null)}
+                className="px-3 py-1.5 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition cursor-pointer"
+              >
+                {t.close}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRestore}
+                disabled={restoring}
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition cursor-pointer disabled:opacity-50"
+              >
+                {restoring ? t.restoringBtn : t.restoreConfirmBtn}
+              </button>
             </div>
           </div>
         </div>

@@ -1,7 +1,41 @@
 import { apiFetch } from './http';
-import { GoogleDriveFile, DriveBackupSnapshot, DriveFolder } from '../types';
+import { GoogleDriveFile, DriveBackupSnapshot, DriveFolder, ScriptFile } from '../types';
 
 const DRIVE_API_BASE = 'https://www.googleapis.com/drive/v3';
+
+export interface DriveSnapshotPayload {
+  scriptId: string;
+  title: string;
+  parentTitle?: string;
+  parentId?: string;
+  commitId?: string;
+  timestamp?: string;
+  files: ScriptFile[];
+}
+
+/** Parses and validates a Drive backup snapshot (throws on corrupted payload). */
+export const parseSnapshotPayload = (raw: string): DriveSnapshotPayload => {
+  let payload: unknown;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    throw new Error('Файл снимка поврежден: некорректный JSON');
+  }
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Файл снимка поврежден: неожиданное содержимое');
+  }
+  const p = payload as Record<string, unknown>;
+  if (!Array.isArray(p.files) || p.files.length === 0) {
+    throw new Error('В снимке нет файлов проекта');
+  }
+  for (const f of p.files as unknown[]) {
+    const file = f as Record<string, unknown>;
+    if (!file || typeof file.name !== 'string' || typeof file.source !== 'string') {
+      throw new Error('Файл снимка поврежден: неверная структура файлов');
+    }
+  }
+  return payload as DriveSnapshotPayload;
+};
 
 export const listGoogleDriveFolders = async (
   accessToken: string,
@@ -219,14 +253,17 @@ export const saveSnapshotToDrive = async (
     fileContent +
     closeDelimiter;
 
-  const res = await apiFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': `multipart/related; boundary=${boundary}`
-    },
-    body: multipartRequestBody
-  });
+  const res = await apiFetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': `multipart/related; boundary=${boundary}`
+      },
+      body: multipartRequestBody
+    }
+  );
 
   if (!res.ok) {
     const err = await res.text();
