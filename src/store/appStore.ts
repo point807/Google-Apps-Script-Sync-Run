@@ -10,6 +10,7 @@ import { SAMPLE_SHEETS_SCRIPTS } from '../services/sampleScripts';
 import { syncCoordinator } from '../services/syncManager';
 import { loadToken, persistGitHubConfig } from '../services/tokenStore';
 import { createCommit } from '../services/gitService';
+import { mergeProjectFiles, SyncConflictInfo } from '../services/syncMerge';
 
 export type Lang = 'ru' | 'en';
 export type AppTab = 'workspace' | 'sheets' | 'git' | 'github' | 'drive' | 'logs';
@@ -103,6 +104,8 @@ interface AppStore {
   applyAutoSync: () => void;
   manualSync: () => Promise<void>;
   cancelSync: () => void;
+  syncConflict: SyncConflictInfo | null;
+  resolveSyncConflict: (prefer: 'local' | 'remote') => void;
 }
 
 export const useAppStore = create<AppStore>((set, get) => {
@@ -361,6 +364,9 @@ export const useAppStore = create<AppStore>((set, get) => {
             };
           });
           persistProjects(get().allProjects, get().currentProject);
+        },
+        (info) => {
+          set({ syncConflict: info });
         }
       );
     },
@@ -389,6 +395,52 @@ export const useAppStore = create<AppStore>((set, get) => {
 
     cancelSync: () => {
       syncCoordinator.cancelSync();
+    },
+
+    syncConflict: null,
+
+    resolveSyncConflict: (prefer) => {
+      const c = get().syncConflict;
+      if (!c) return;
+      const merge = mergeProjectFiles(
+        c.localProject.files,
+        c.remoteProject.files,
+        c.baselineFiles,
+        prefer === 'remote' ? 'prefer-remote' : 'prefer-local'
+      );
+      const updated: AppsScriptProject = {
+        ...c.remoteProject,
+        files: merge.files,
+        parentTitle: c.localProject.parentTitle,
+        lastSyncTime: new Date().toISOString(),
+        lastSyncStatus: 'success',
+        lastModified: new Date().toISOString()
+      };
+      const { allProjects, user } = get();
+      const idx = allProjects.findIndex((p) => p.scriptId === updated.scriptId);
+      const nextProjects =
+        idx !== -1
+          ? allProjects.map((p, i) => (i === idx ? updated : p))
+          : [updated, ...allProjects];
+      const nextCurrent =
+        get().currentProject?.scriptId === updated.scriptId ? updated : get().currentProject;
+      set({ syncConflict: null, allProjects: nextProjects, currentProject: nextCurrent });
+      persistProjects(nextProjects, nextCurrent);
+
+      void createCommit(
+        updated.scriptId,
+        updated.files,
+        `Разрешение конфликта синхронизации (${prefer === 'remote' ? 'взяты версии Apps Script' : 'оставлены локальные версии'}): ${c.conflictedFiles.join(', ')}`,
+        user?.displayName || 'User Developer',
+        'main',
+        { force: true }
+      );
+
+      get().addLog(
+        `Конфликт синхронизации для "${updated.title}" разрешен (${prefer === 'remote' ? 'взяты версии Apps Script' : 'оставлены локальные версии'})`,
+        'success',
+        'realtime'
+      );
     }
   };
 });

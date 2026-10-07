@@ -1,4 +1,6 @@
 import { AppsScriptProject, GitHubConfig, SyncLogEntry, SyncSettings } from '../types';
+import { mergeProjectFiles, SyncConflictInfo } from './syncMerge';
+import { loadCommits } from './gitService';
 import { createCommit } from './gitService';
 import { fetchAppsScriptProject } from './appsScriptService';
 import { getOrCreateBackupFolder, saveSnapshotToDrive } from './googleDriveService';
@@ -17,6 +19,7 @@ export class SyncCoordinator {
     activeScriptsCount?: number;
   }) => void;
   private onProjectUpdatedCallback?: (updatedProject: AppsScriptProject) => void;
+  private onConflictCallback?: (info: SyncConflictInfo) => void;
 
   public setupListeners(
     onLog: (entry: SyncLogEntry) => void,
@@ -26,11 +29,13 @@ export class SyncCoordinator {
       countdown: number;
       activeScriptsCount?: number;
     }) => void,
-    onProjectUpdated?: (updatedProject: AppsScriptProject) => void
+    onProjectUpdated?: (updatedProject: AppsScriptProject) => void,
+    onConflict?: (info: SyncConflictInfo) => void
   ) {
     this.onLogCallback = onLog;
     this.onStatusChangeCallback = onStatusChange;
     this.onProjectUpdatedCallback = onProjectUpdated;
+    this.onConflictCallback = onConflict;
   }
 
   private log(
@@ -205,6 +210,29 @@ export class SyncCoordinator {
           lastSyncTime: new Date().toISOString(),
           lastSyncStatus: 'success'
         };
+
+        // Three-way merge (local vs remote vs last commit) — never silently
+        // overwrite files changed on both sides.
+        const history = await loadCommits(liveProject.scriptId);
+        const baselineFiles = history[0]?.files ?? null;
+        const merge = mergeProjectFiles(project.files, liveProject.files, baselineFiles);
+        if (merge.conflicts.length > 0) {
+          this.log(
+            'warning',
+            'apps_script',
+            `[${project.title}] Конфликт синхронизации (файлы изменены и локально, и в Apps Script): ${merge.conflicts.join(', ')}. Скрипт пропущен до разрешения конфликта.`
+          );
+          if (this.onConflictCallback) {
+            this.onConflictCallback({
+              localProject: project,
+              remoteProject: liveProject,
+              baselineFiles,
+              conflictedFiles: merge.conflicts
+            });
+          }
+          return;
+        }
+        liveProject = { ...liveProject, files: merge.files };
         if (this.onProjectUpdatedCallback) {
           this.onProjectUpdatedCallback(liveProject);
         }

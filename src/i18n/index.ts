@@ -9,6 +9,16 @@ export type Lang = 'ru' | 'en';
 /** Central translation catalog, one namespace per UI area. */
 export const messages = {
   ru: {
+    conflict: {
+      title: 'Конфликт синхронизации',
+      desc: 'Файлы ниже изменены и локально, и в Google Apps Script. Выберите, какие версии оставить, — остальные файлы объединяются автоматически. Проект:',
+      filesLabel: 'Конфликтные файлы:',
+      modifiedBoth: 'изменён с обеих сторон',
+      deletedRemotely: 'удалён в Apps Script',
+      deletedLocally: 'удалён локально',
+      keepLocal: 'Оставить мои версии',
+      takeRemote: 'Взять из Apps Script'
+    },
     nav: {
       appName: 'ScriptVault',
       tagline: 'Apps Script Sync & Git',
@@ -206,6 +216,16 @@ export const messages = {
     }
   },
   en: {
+    conflict: {
+      title: 'Sync conflict',
+      desc: 'The files below were changed both locally and in Google Apps Script. Choose which versions to keep — everything else is merged automatically. Project:',
+      filesLabel: 'Conflicted files:',
+      modifiedBoth: 'modified on both sides',
+      deletedRemotely: 'deleted in Apps Script',
+      deletedLocally: 'deleted locally',
+      keepLocal: 'Keep my versions',
+      takeRemote: 'Take from Apps Script'
+    },
     nav: {
       appName: 'ScriptVault',
       tagline: 'Apps Script Sync & Git',

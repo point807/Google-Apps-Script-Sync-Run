@@ -13,6 +13,7 @@ import { GitHubPanel } from './components/GitHubPanel';
 import { BackupDrivePanel } from './components/BackupDrivePanel';
 import { ActivityLog } from './components/ActivityLog';
 import { ProjectEmptyState } from './components/ProjectEmptyState';
+import { SyncConflictModal } from './components/SyncConflictModal';
 
 export default function App() {
   const activeTab = useAppStore((s) => s.activeTab);
@@ -65,8 +66,7 @@ export default function App() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'workspace' &&
-          (currentProject ? <CodeWorkspace /> : <ProjectEmptyState />)}
+        {activeTab === 'workspace' && (currentProject ? <CodeWorkspace /> : <ProjectEmptyState />)}
 
         {activeTab === 'sheets' && <SpreadsheetPicker />}
         {activeTab === 'git' && <GitHistory />}
@@ -92,6 +92,7 @@ export default function App() {
           </div>
         </div>
       </footer>
+      <SyncConflictModal />
     </div>
   );
 }
