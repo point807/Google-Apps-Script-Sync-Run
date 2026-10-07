@@ -202,7 +202,7 @@ export class SyncCoordinator {
     }
 
     // 2. Git Engine: check and commit changes
-    const commit = createCommit(
+    const commit = await createCommit(
       liveProject.scriptId,
       liveProject.files,
       isManual

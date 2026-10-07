@@ -130,12 +130,12 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
   }[lang];
 
   // Refresh commits when active script changes
-  const refreshCommits = () => {
+  const refreshCommits = async () => {
     if (!activeScript) {
       setCommits([]);
       return;
     }
-    const list = loadCommits(activeScript.scriptId);
+    const list = await loadCommits(activeScript.scriptId);
     setCommits(list);
   };
 
@@ -146,7 +146,7 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
   }, [currentProject?.scriptId]);
 
   useEffect(() => {
-    refreshCommits();
+    void refreshCommits();
   }, [selectedScriptId, activeScript?.lastModified]);
 
   const handleCopySha = (sha: string) => {

@@ -1,4 +1,5 @@
 import { GitCommit, ScriptFile } from '../types';
+import { commitsStorage } from './storage';
 
 export interface FileDiff {
   fileName: string;
@@ -215,28 +216,59 @@ export const computeProjectDiff = (oldFiles: ScriptFile[], newFiles: ScriptFile[
   };
 };
 
-const getStorageKey = (scriptId: string) => `scriptvault_git_${scriptId}`;
+// Legacy localStorage key format (pre-IndexedDB builds)
+const getLegacyStorageKey = (scriptId: string) => `scriptvault_git_${scriptId}`;
 
-export const loadCommits = (scriptId: string): GitCommit[] => {
+/**
+ * One-time migration of commit history from localStorage to IndexedDB.
+ * The legacy copy is only removed after it is safely stored (or is garbage).
+ */
+const migrateLegacyCommits = async (scriptId: string): Promise<void> => {
+  const legacyKey = getLegacyStorageKey(scriptId);
+  const raw = localStorage.getItem(legacyKey);
+  if (!raw) return;
+
+  let parsed: unknown;
   try {
-    const raw = localStorage.getItem(getStorageKey(scriptId));
-    if (!raw) return [];
-    return JSON.parse(raw);
+    parsed = JSON.parse(raw);
   } catch (e) {
-    console.error('Failed to load commits from localStorage', e);
+    console.error('Corrupted legacy commit history, discarding', e);
+    localStorage.removeItem(legacyKey);
+    return;
+  }
+
+  if (Array.isArray(parsed)) {
+    try {
+      await commitsStorage.set(scriptId, parsed);
+      localStorage.removeItem(legacyKey);
+    } catch (e) {
+      // IndexedDB unavailable — keep the legacy copy so no history is lost
+      console.error('Failed to migrate legacy commit history', e);
+    }
+  } else {
+    localStorage.removeItem(legacyKey);
+  }
+};
+
+export const loadCommits = async (scriptId: string): Promise<GitCommit[]> => {
+  try {
+    await migrateLegacyCommits(scriptId);
+    return (await commitsStorage.get(scriptId)) ?? [];
+  } catch (e) {
+    console.error('Failed to load commits', e);
     return [];
   }
 };
 
-export const saveCommits = (scriptId: string, commits: GitCommit[]) => {
+export const saveCommits = async (scriptId: string, commits: GitCommit[]): Promise<void> => {
   try {
-    localStorage.setItem(getStorageKey(scriptId), JSON.stringify(commits));
+    await commitsStorage.set(scriptId, commits);
   } catch (e) {
-    console.error('Failed to save commits to localStorage', e);
+    console.error('Failed to save commits', e);
   }
 };
 
-export const createCommit = (
+export const createCommit = async (
   scriptId: string,
   files: ScriptFile[],
   message: string,
@@ -248,8 +280,8 @@ export const createCommit = (
     gitHubCommitSha?: string;
     force?: boolean;
   } = {}
-): GitCommit | null => {
-  const commits = loadCommits(scriptId);
+): Promise<GitCommit | null> => {
+  const commits = await loadCommits(scriptId);
   const lastCommit = commits.length > 0 ? commits[0] : null;
 
   // Check if there are changes compared to last commit
@@ -291,33 +323,33 @@ export const createCommit = (
   };
 
   const updated = [newCommit, ...commits];
-  saveCommits(scriptId, updated);
+  await saveCommits(scriptId, updated);
   return newCommit;
 };
 
-export const updateCommitSyncStatus = (
+export const updateCommitSyncStatus = async (
   scriptId: string,
   commitId: string,
   updates: { syncedToDrive?: boolean; syncedToGitHub?: boolean; gitHubCommitSha?: string }
-) => {
-  const commits = loadCommits(scriptId);
+): Promise<void> => {
+  const commits = await loadCommits(scriptId);
   const idx = commits.findIndex((c) => c.id === commitId);
   if (idx !== -1) {
     commits[idx] = { ...commits[idx], ...updates };
-    saveCommits(scriptId, commits);
+    await saveCommits(scriptId, commits);
   }
 };
 
-export const revertToCommit = (
+export const revertToCommit = async (
   scriptId: string,
   commitId: string,
   author: string = 'ScriptVault Developer'
-): { targetCommit: GitCommit; revertCommit: GitCommit } | null => {
-  const commits = loadCommits(scriptId);
+): Promise<{ targetCommit: GitCommit; revertCommit: GitCommit } | null> => {
+  const commits = await loadCommits(scriptId);
   const targetCommit = commits.find((c) => c.id === commitId);
   if (!targetCommit) return null;
 
-  const revertCommit = createCommit(
+  const revertCommit = await createCommit(
     scriptId,
     targetCommit.files,
     `Rollback: Revert to commit ${targetCommit.id} ("${targetCommit.message}")`,

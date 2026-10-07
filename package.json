@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "firebase": "^12.19.0",
+    "idb": "^8.0.4",
     "jszip": "^3.10.2",
     "lucide-react": "^0.546.0",
     "prismjs": "^1.30.0",
@@ -42,6 +43,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-unused-imports": "^4.4.1",
+    "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.14.5",
     "prettier": "^3.9.9",
     "tailwindcss": "^4.3.3",

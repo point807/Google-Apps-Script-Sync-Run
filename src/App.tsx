@@ -145,7 +145,7 @@ export default function App() {
 
     // Initial git commit for current project if empty
     allProjects.forEach((proj) => {
-      createCommit(
+      void createCommit(
         proj.scriptId,
         proj.files,
         `Initial snapshot of ${proj.title}`,
@@ -296,7 +296,7 @@ export default function App() {
     setAllProjects((prev) => prev.map((p) => (p.scriptId === updated.scriptId ? updated : p)));
 
     // Create a new restore commit in git
-    createCommit(
+    void createCommit(
       currentProject.scriptId,
       files,
       commitMessage,
@@ -352,7 +352,7 @@ export default function App() {
       });
     }
 
-    createCommit(
+    void createCommit(
       project.scriptId,
       project.files,
       `Imported ${project.title}`,

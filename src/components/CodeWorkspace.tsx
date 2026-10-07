@@ -301,9 +301,9 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
     }
   };
 
-  const handleCreateManualCommit = () => {
+  const handleCreateManualCommit = async () => {
     const msg = commitMessage.trim() || `Manual snapshot of ${project.title}`;
-    const commit = createCommit(project.scriptId, project.files, msg, 'User Developer', 'main', {
+    const commit = await createCommit(project.scriptId, project.files, msg, 'User Developer', 'main', {
       force: true
     });
     if (commit) {
