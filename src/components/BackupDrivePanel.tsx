@@ -14,6 +14,7 @@ import {
 import { useT } from '../i18n';
 import { FolderPickerModal } from './FolderPickerModal';
 import { SnapshotList } from './SnapshotList';
+import { SettingsImportExport } from './SettingsImportExport';
 
 export const BackupDrivePanel: React.FC = () => {
   const allProjects = useAppStore((s) => s.allProjects);
@@ -345,6 +346,8 @@ export const BackupDrivePanel: React.FC = () => {
       </div>
 
       <SnapshotList />
+
+      <SettingsImportExport />
 
       <FolderPickerModal open={showFolderModal} onClose={() => setShowFolderModal(false)} />
     </div>

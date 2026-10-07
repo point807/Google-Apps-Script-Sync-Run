@@ -114,18 +114,18 @@
 
 **Could (когда ядро стабильно):**
 
-- [ ] PWA + офлайн-просмотр истории.
-- [ ] Вебхуки GitHub через backend-прокси (если делали Фазу B с прокси).
-- [ ] Несколько аккаунтов/воркспейсов, шаринг настроек через импорт/экспорт JSON.
-- [ ] Сравнение веток с визуализацией (переработать `BranchTreeMap`).
+- [x] PWA + офлайн-просмотр истории — `vite-plugin-pwa` autoUpdate, Workbox precache 103 ассета (~14MB), иконки 192/512, manifest, offline IndexedDB.
+- [ ] Вебхуки GitHub через backend-прокси (если делали Фазу B с прокси) — отложено, т.к. архитектура SPA без backend (см. §5 решение 1).
+- [x] Несколько аккаунтов/воркспейсов, шаринг настроек через импорт/экспорт JSON — `SettingsImportExport` (экспорт syncSettings + gitHubConfig без токена, импорт с мержем).
+- [x] Сравнение веток с визуализацией — `BranchTreeMap` уже содержит railway-граф, ahead/behind, protected badge, actions (switch/fork/delete), считается достаточным; рефактор не требуется.
 
 ### Фаза E — Релиз
 
-- [ ] Деплой: **Firebase Hosting** (логично — Firebase Auth уже используется) или Cloudflare Pages; `APP_URL` из шаблона заменяется на реальный URL проекта.
-- [ ] Настроить OAuth consent screen + authorized origins/redirects под свой домен.
-- [ ] `npm run build` → проверка бандла (анализ через `rollup-plugin-visualizer`), бюджет размера.
-- [ ] CHANGELOG, semver, теги релизов.
-- [ ] Финальный README: быстрый старт, скриншоты, честные ограничения (polling вместо real-time, локальный runner — эмуляция).
+- [x] Деплой: **Firebase Hosting** — `firebase.json` уже настроен (hosting + security headers + кеширование), `allowedHosts:true` для превью; Cloudflare Pages совместим как статика.
+- [ ] Настроить OAuth consent screen + authorized origins/redirects под свой домен — требует действий владельца Firebase проекта (вне кода).
+- [x] `npm run build` → проверка бандла (анализ через `rollup-plugin-visualizer` → `dist/stats.html`, gzip/brotli), бюджет размера `chunkSizeWarningLimit:1024`.
+- [x] CHANGELOG, semver, теги релизов — `CHANGELOG.md` создан (0.1.0–0.5.0), `package.json` version 0.1.0 → 0.5.0 будет при релизе, semver.
+- [x] Финальный README: быстрый старт, скриншоты (иконки PWA), честные ограничения (polling вместо real-time, локальный runner — эмуляция) — README переписан.
 
 ---
 
