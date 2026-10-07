@@ -1,34 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAppStore } from '../store/appStore';
 import {
   Clock,
   HardDrive,
   RefreshCw,
   CheckCircle2,
-  FileJson,
-  Calendar,
-  Layers,
   Folder,
-  FolderPlus,
-  Search,
   Check,
   Code2,
   FileSpreadsheet,
   Settings2
 } from 'lucide-react';
-import { DriveBackupSnapshot, DriveFolder } from '../types';
-import {
-  getOrCreateBackupFolder,
-  listGoogleDriveFolders,
-  createCustomDriveFolder,
-  listDriveSnapshots,
-  downloadDriveFileContent
-} from '../services/googleDriveService';
 import { useT } from '../i18n';
+import { FolderPickerModal } from './FolderPickerModal';
+import { SnapshotList } from './SnapshotList';
 
 export const BackupDrivePanel: React.FC = () => {
   const allProjects = useAppStore((s) => s.allProjects);
-  const accessToken = useAppStore((s) => s.accessToken);
   const settings = useAppStore((s) => s.syncSettings);
   const onUpdateSettings = useAppStore((s) => s.updateSettings);
   const onTriggerBackupNow = useAppStore((s) => s.manualSync);
@@ -38,102 +26,13 @@ export const BackupDrivePanel: React.FC = () => {
     addLog(msg, type ?? 'info', 'drive');
   // Folder selector state
   const [showFolderModal, setShowFolderModal] = useState(false);
-  const [driveFolders, setDriveFolders] = useState<DriveFolder[]>([]);
-  const [loadingFolders, setLoadingFolders] = useState(false);
-  const [folderSearch, setFolderSearch] = useState('');
-  const [newFolderName, setNewFolderName] = useState('');
-  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
-
-  // Snapshots state
-  const [snapshots, setSnapshots] = useState<DriveBackupSnapshot[]>([]);
-  const [loadingSnapshots, setLoadingSnapshots] = useState(false);
-  const [previewContent, setPreviewContent] = useState<string | null>(null);
-  const [previewFileName, setPreviewFileName] = useState('');
 
   // Frequency custom input
   const [customSeconds, setCustomSeconds] = useState(settings.intervalSeconds);
 
   const t = useT('backup');
 
-  // Load folders when opening folder modal
-  const handleOpenFolderModal = async () => {
-    setShowFolderModal(true);
-    if (!accessToken) return;
-    setLoadingFolders(true);
-    try {
-      const list = await listGoogleDriveFolders(accessToken, folderSearch);
-      setDriveFolders(list);
-    } catch (e: any) {
-      onLog(`Ошибка загрузки папок: ${e.message}`, 'error');
-    } finally {
-      setLoadingFolders(false);
-    }
-  };
-
-  const handleSearchFolders = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!accessToken) return;
-    setLoadingFolders(true);
-    try {
-      const list = await listGoogleDriveFolders(accessToken, folderSearch);
-      setDriveFolders(list);
-    } catch (e: any) {
-      onLog(`Ошибка поиска папок: ${e.message}`, 'error');
-    } finally {
-      setLoadingFolders(false);
-    }
-  };
-
-  const handleSelectFolder = (folder: DriveFolder) => {
-    onUpdateSettings({
-      ...settings,
-      backupFolderId: folder.id,
-      backupFolderName: folder.name
-    });
-    setShowFolderModal(false);
-    onLog(`Выбрана папка для резервного копирования: ${folder.name} (ID: ${folder.id})`, 'success');
-  };
-
-  const handleCreateAndSelectFolder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!accessToken || !newFolderName.trim()) return;
-    setIsCreatingFolder(true);
-    try {
-      const created = await createCustomDriveFolder(accessToken, newFolderName.trim());
-      handleSelectFolder(created);
-      setNewFolderName('');
-    } catch (e: any) {
-      onLog(`Ошибка создания папки: ${e.message}`, 'error');
-      alert(`Ошибка: ${e.message}`);
-    } finally {
-      setIsCreatingFolder(false);
-    }
-  };
-
   // Load snapshots from the currently selected folder
-  const loadSnapshots = async () => {
-    if (!accessToken) return;
-    setLoadingSnapshots(true);
-    try {
-      let folderId = settings.backupFolderId;
-      if (!folderId) {
-        folderId = await getOrCreateBackupFolder(accessToken, settings.backupFolderName);
-        onUpdateSettings({ ...settings, backupFolderId: folderId });
-      }
-      const list = await listDriveSnapshots(accessToken, folderId);
-      setSnapshots(list);
-    } catch (e: any) {
-      console.warn('Failed to list drive snapshots', e);
-    } finally {
-      setLoadingSnapshots(false);
-    }
-  };
-
-  useEffect(() => {
-    if (accessToken) {
-      loadSnapshots();
-    }
-  }, [accessToken, settings.backupFolderId, settings.backupFolderName]);
 
   // Script selection helpers
   const isScriptSelected = (scriptId: string) => {
@@ -181,19 +80,6 @@ export const BackupDrivePanel: React.FC = () => {
     onLog(`Интервал синхронизации установлен: ${val} секунд`, 'info');
   };
 
-  const handlePreviewSnapshot = async (snapshot: DriveBackupSnapshot) => {
-    if (!accessToken) return;
-    try {
-      onLog(`Загрузка снимка ${snapshot.fileName} с Google Диска...`, 'info');
-      const text = await downloadDriveFileContent(accessToken, snapshot.fileId);
-      setPreviewFileName(snapshot.fileName);
-      setPreviewContent(text);
-    } catch (err: any) {
-      onLog(`Ошибка загрузки: ${err.message}`, 'error');
-      alert(`Ошибка: ${err.message}`);
-    }
-  };
-
   const selectedCount =
     settings.selectedScriptIds && settings.selectedScriptIds.length > 0
       ? settings.selectedScriptIds.length
@@ -235,7 +121,7 @@ export const BackupDrivePanel: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handleOpenFolderModal}
+              onClick={() => setShowFolderModal(true)}
               className="px-3 py-1.5 text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 hover:text-white rounded-xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer"
             >
               <Folder className="w-3.5 h-3.5 text-indigo-400" />
@@ -458,220 +344,9 @@ export const BackupDrivePanel: React.FC = () => {
         </div>
       </div>
 
-      {/* 4. Stored Snapshots on Google Drive */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-bold text-white flex items-center gap-2">
-            <Layers className="w-5 h-5 text-indigo-400" />
-            <span>{t.snapshotsSection}</span>
-          </h3>
+      <SnapshotList />
 
-          <button
-            type="button"
-            onClick={loadSnapshots}
-            disabled={loadingSnapshots || !accessToken}
-            className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer disabled:opacity-40"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loadingSnapshots ? 'animate-spin' : ''}`} />
-            <span>{t.refreshSnapshots}</span>
-          </button>
-        </div>
-
-        {!accessToken ? (
-          <div className="p-8 text-center rounded-xl bg-slate-950/40 text-xs text-slate-400">
-            {t.noDriveToken}
-          </div>
-        ) : loadingSnapshots ? (
-          <div className="p-8 text-center rounded-xl bg-slate-950/40 text-xs text-slate-400 flex items-center justify-center gap-2">
-            <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
-            <span>Загрузка списка копий с Google Диска...</span>
-          </div>
-        ) : snapshots.length === 0 ? (
-          <div className="p-8 text-center rounded-xl bg-slate-950/40 text-xs text-slate-500 font-mono">
-            {t.noSnapshots}
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-800/80 border border-slate-800/80 rounded-xl bg-slate-950/60 overflow-hidden font-mono text-xs">
-            {snapshots.map((s) => (
-              <div
-                key={s.fileId}
-                className="p-3.5 hover:bg-slate-900/60 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <FileJson className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span className="text-slate-200 font-semibold truncate">{s.fileName}</span>
-                  {s.sizeBytes && (
-                    <span className="text-[11px] text-slate-500 shrink-0">
-                      ({Math.round(s.sizeBytes / 1024)} KB)
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                  <span className="text-slate-400 text-[11px] flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-slate-500" />
-                    {new Date(s.createdTime).toLocaleString()}
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => handlePreviewSnapshot(s)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer text-xs"
-                  >
-                    Просмотр
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Modal: Google Drive Folder Picker & Creator */}
-      {showFolderModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[85vh] shadow-2xl flex flex-col text-slate-200 overflow-hidden">
-            {/* Modal Header */}
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Folder className="w-5 h-5 text-emerald-400" />
-                <span>{t.browseModalTitle}</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowFolderModal(false)}
-                className="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition cursor-pointer"
-              >
-                {t.close}
-              </button>
-            </div>
-
-            {/* Modal Search & Create Row */}
-            <div className="p-4 border-b border-slate-800/80 bg-slate-950/40 space-y-3">
-              <form onSubmit={handleSearchFolders} className="flex gap-2">
-                <div className="relative flex-1">
-                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
-                  <input
-                    type="text"
-                    value={folderSearch}
-                    onChange={(e) => setFolderSearch(e.target.value)}
-                    placeholder={t.folderSearchPlaceholder}
-                    className="w-full pl-9 pr-3 py-2 text-xs bg-slate-900 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={loadingFolders}
-                  className="px-4 py-2 text-xs font-medium text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition cursor-pointer"
-                >
-                  Поиск
-                </button>
-              </form>
-
-              {/* Create new folder inline */}
-              <form
-                onSubmit={handleCreateAndSelectFolder}
-                className="flex gap-2 pt-2 border-t border-slate-800/60"
-              >
-                <div className="relative flex-1">
-                  <FolderPlus className="w-4 h-4 absolute left-3 top-2.5 text-indigo-400" />
-                  <input
-                    type="text"
-                    value={newFolderName}
-                    onChange={(e) => setNewFolderName(e.target.value)}
-                    placeholder={t.folderNamePlaceholder}
-                    className="w-full pl-9 pr-3 py-2 text-xs bg-slate-900 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={isCreatingFolder || !newFolderName.trim()}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  <FolderPlus className="w-3.5 h-3.5" />
-                  <span>{isCreatingFolder ? 'Создание...' : t.createFolderAction}</span>
-                </button>
-              </form>
-            </div>
-
-            {/* Folder List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-              {!accessToken ? (
-                <div className="p-8 text-center text-xs text-slate-400">{t.noDriveToken}</div>
-              ) : loadingFolders ? (
-                <div className="p-8 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-                  <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
-                  <span>Поиск папок на Google Диске...</span>
-                </div>
-              ) : driveFolders.length === 0 ? (
-                <div className="p-8 text-center text-xs text-slate-500 italic">
-                  Папки не найдены. Вы можете создать новую папку выше.
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-800/80 border border-slate-800 rounded-xl overflow-hidden bg-slate-950/60">
-                  {driveFolders.map((folder) => {
-                    const isCurrent = settings.backupFolderId === folder.id;
-                    return (
-                      <div
-                        key={folder.id}
-                        className="p-3 hover:bg-slate-900/60 transition flex items-center justify-between gap-3"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <Folder className="w-4 h-4 text-emerald-400 shrink-0" />
-                          <span className="text-xs font-semibold text-slate-200 truncate">
-                            {folder.name}
-                          </span>
-                          <span className="text-[10px] text-slate-500 font-mono shrink-0">
-                            (ID: {folder.id.slice(0, 10)}...)
-                          </span>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleSelectFolder(folder)}
-                          className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                            isCurrent
-                              ? 'bg-emerald-600 text-white cursor-default'
-                              : 'bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white'
-                          }`}
-                        >
-                          {isCurrent ? 'Выбрана' : t.selectFolderBtn}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Preview Modal */}
-      {previewContent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl max-h-[80vh] shadow-2xl flex flex-col text-slate-200 overflow-hidden">
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <FileJson className="w-4 h-4 text-amber-400" />
-                <span>{previewFileName}</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setPreviewContent(null)}
-                className="px-3 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition cursor-pointer"
-              >
-                {t.close}
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 bg-slate-950">
-              <pre className="text-xs font-mono text-slate-300 whitespace-pre-wrap">
-                {previewContent}
-              </pre>
-            </div>
-          </div>
-        </div>
-      )}
+      <FolderPickerModal open={showFolderModal} onClose={() => setShowFolderModal(false)} />
     </div>
   );
 };
