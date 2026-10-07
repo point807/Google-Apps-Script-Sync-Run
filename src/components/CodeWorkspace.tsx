@@ -42,6 +42,8 @@ export const CodeWorkspace: React.FC = () => {
   const accessToken = useAppStore((s) => s.accessToken);
   const gitHubConfig = useAppStore((s) => s.gitHubConfig);
   const onUpdateGitHubConfig = useAppStore((s) => s.updateGitHubConfig);
+  const activeFileName = useAppStore((s) => s.activeFileName);
+  const setActiveFileName = useAppStore((s) => s.setActiveFileName);
   const lang = useAppStore((s) => s.lang);
   const addLog = useAppStore((s) => s.addLog);
   const onLog = (msg: string, type?: 'info' | 'success' | 'warning' | 'error') =>
@@ -89,6 +91,16 @@ export const CodeWorkspace: React.FC = () => {
       setSelectedFileIndex(0);
     }
   }, [project.scriptId, lastScriptId, project.files]);
+
+  // Jump to file requested by global search
+  useEffect(() => {
+    if (!activeFileName) return;
+    const idx = project.files.findIndex((f) => f.name === activeFileName);
+    if (idx !== -1) {
+      setSelectedFileIndex(idx);
+      setActiveFileName(null);
+    }
+  }, [activeFileName, project.files, setActiveFileName]);
 
   // Compute live diff against baseline
   const projectDiff = computeProjectDiff(baselineFiles, project.files);
@@ -163,6 +175,16 @@ export const CodeWorkspace: React.FC = () => {
     onLog(`Файл ${file.name} удален из проекта`, 'warning');
   };
 
+  const handleAutoDraftCommit = async (reason: string) => {
+    try {
+      const msg = `Draft ${reason}: ${project.title} @ ${new Date().toLocaleTimeString()}`;
+      await createCommit(project.scriptId, project.files, msg, 'Auto Draft', 'main', { force: true });
+      addLog(`Автосохранён черновик перед ${reason}`, 'info', 'git');
+    } catch {
+      // draft failure is non-blocking
+    }
+  };
+
   const handleConfirmPush = async () => {
     if (!accessToken) {
       alert('Необходимо выполнить вход через Google для отправки в Apps Script API.');
@@ -170,6 +192,7 @@ export const CodeWorkspace: React.FC = () => {
     }
 
     setIsPushing(true);
+    await handleAutoDraftCommit('пушем в Google');
     try {
       let finalFilesToSend = [...project.files];
 
@@ -352,6 +375,8 @@ export const CodeWorkspace: React.FC = () => {
       );
       return;
     }
+
+    await handleAutoDraftCommit('пушем в GitHub');
 
     const folder =
       customFolder !== undefined

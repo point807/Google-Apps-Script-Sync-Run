@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAppStore } from '../store/appStore';
-import { RefreshCw, Github, Database, LogOut, CheckCircle2, X } from 'lucide-react';
+import { RefreshCw, Github, Database, LogOut, CheckCircle2, X, Search } from 'lucide-react';
 import { useT } from '../i18n';
 
 export const Navbar: React.FC = () => {
@@ -20,7 +20,21 @@ export const Navbar: React.FC = () => {
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const lang = useAppStore((s) => s.lang);
   const setLang = useAppStore((s) => s.setLang);
+  const isSearchOpen = useAppStore((s) => s.isSearchOpen);
+  const setSearchOpen = useAppStore((s) => s.setSearchOpen);
   const t = useT('nav');
+  const searchT = useT('search');
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen(!isSearchOpen);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isSearchOpen, setSearchOpen]);
 
   return (
     <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80">
@@ -112,6 +126,19 @@ export const Navbar: React.FC = () => {
 
           {/* Right Action Area */}
           <div className="flex items-center gap-2.5">
+            {/* Global search */}
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              title={`${searchT.open} (Ctrl+K)`}
+              className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-400 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl transition cursor-pointer"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">{searchT.open}</span>
+              <span className="hidden lg:inline-flex items-center gap-1 ml-1 px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono">
+                ⌘K
+              </span>
+            </button>
             {/* Real-time sync ticker & manual trigger */}
             <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800 text-xs">
               <span className="relative flex h-2 w-2">

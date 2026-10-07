@@ -3,8 +3,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import React, { Suspense, lazy, useState, useRef } from 'react';
-import { Search, Copy, Check, Maximize2, Minimize2, WrapText, Code2, Minus, Plus } from 'lucide-react';
+import {
+  Search,
+  Copy,
+  Check,
+  Maximize2,
+  Minimize2,
+  WrapText,
+  Code2,
+  Minus,
+  Plus,
+  Undo2,
+  Redo2
+} from 'lucide-react';
 import { ScriptFile } from '../types';
+import type * as Monaco from 'monaco-editor';
 
 const MonacoEditor = lazy(() => import('./MonacoEditor'));
 
@@ -21,6 +34,7 @@ export const SyntaxEditor: React.FC<SyntaxEditorProps> = ({ file, onChange, lang
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [findSignal, setFindSignal] = useState<number>(0);
+  const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -86,6 +100,23 @@ export const SyntaxEditor: React.FC<SyntaxEditorProps> = ({ file, onChange, lang
 
           <button
             type="button"
+            onClick={() => (editorRef.current as any)?.trigger('toolbar', 'undo', null)}
+            className="p-1.5 text-slate-400 hover:text-white rounded transition cursor-pointer"
+            title="Отменить (Ctrl+Z)"
+          >
+            <Undo2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => (editorRef.current as any)?.trigger('toolbar', 'redo', null)}
+            className="p-1.5 text-slate-400 hover:text-white rounded transition cursor-pointer"
+            title="Повторить (Ctrl+Y)"
+          >
+            <Redo2 className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            type="button"
             onClick={() => setFindSignal((s) => s + 1)}
             className="p-1.5 text-slate-400 hover:text-white rounded transition cursor-pointer"
             title="Поиск и замена (Ctrl+F)"
@@ -135,6 +166,9 @@ export const SyntaxEditor: React.FC<SyntaxEditorProps> = ({ file, onChange, lang
             fontSize={fontSize}
             wordWrap={wordWrap}
             findSignal={findSignal}
+            onEditorMount={(editor) => {
+              editorRef.current = editor as unknown as Monaco.editor.IStandaloneCodeEditor;
+            }}
           />
         </Suspense>
       </div>

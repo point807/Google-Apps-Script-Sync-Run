@@ -15,6 +15,7 @@ import { ActivityLog } from './components/ActivityLog';
 import { ProjectEmptyState } from './components/ProjectEmptyState';
 import { SyncConflictModal } from './components/SyncConflictModal';
 import { ToastHost } from './components/ToastHost';
+import { GlobalSearchModal } from './components/GlobalSearchModal';
 
 export default function App() {
   const activeTab = useAppStore((s) => s.activeTab);
@@ -32,6 +33,8 @@ export default function App() {
   const accessToken = useAppStore((s) => s.accessToken);
   const ghConnected = useAppStore((s) => s.gitHubConfig.connected);
   const ghAutoPush = useAppStore((s) => s.gitHubConfig.autoPush);
+  const isSearchOpen = useAppStore((s) => s.isSearchOpen);
+  const setSearchOpen = useAppStore((s) => s.setSearchOpen);
 
   // auth listener + sync coordinator wiring (once)
   useEffect(() => {
@@ -95,6 +98,7 @@ export default function App() {
       </footer>
       <SyncConflictModal />
       <ToastHost />
+      <GlobalSearchModal open={isSearchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   );
 }

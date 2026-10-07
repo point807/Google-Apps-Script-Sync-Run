@@ -34,6 +34,16 @@ export const messages = {
       updateBtn: 'Обновить',
       updated: 'Обновлён'
     },
+    search: {
+      title: 'Поиск по проектам',
+      placeholder: 'Поиск по коду (минимум 2 символа)…',
+      hint: 'Введите минимум 2 символа для поиска по всем файлам всех проектов',
+      noResults: 'Ничего не найдено',
+      results: 'результатов',
+      capped: '(показаны первые 200)',
+      navigate: '↑↓ навигация • Enter открыть • Esc закрыть',
+      open: 'Поиск'
+    },
     conflict: {
       title: 'Конфликт синхронизации',
       desc: 'Файлы ниже изменены и локально, и в Google Apps Script. Выберите, какие версии оставить, — остальные файлы объединяются автоматически. Проект:',
@@ -267,6 +277,16 @@ export const messages = {
       versionLabel: 'version…',
       updateBtn: 'Update',
       updated: 'Updated'
+    },
+    search: {
+      title: 'Search projects',
+      placeholder: 'Search code (min 2 chars)…',
+      hint: 'Type at least 2 characters to search all files in all projects',
+      noResults: 'No results',
+      results: 'results',
+      capped: '(first 200 shown)',
+      navigate: '↑↓ navigate • Enter open • Esc close',
+      open: 'Search'
     },
     conflict: {
       title: 'Sync conflict',

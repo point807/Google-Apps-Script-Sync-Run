@@ -80,14 +80,18 @@ interface AppStore {
   // --- ui ---
   lang: Lang;
   activeTab: AppTab;
+  isSearchOpen: boolean;
   setLang: (lang: Lang) => void;
   setActiveTab: (tab: AppTab) => void;
+  setSearchOpen: (open: boolean) => void;
 
   // --- projects ---
   allProjects: AppsScriptProject[];
   currentProject: AppsScriptProject | null;
+  activeFileName: string | null;
   selectProject: (project: AppsScriptProject) => void;
   updateProject: (project: AppsScriptProject) => void;
+  setActiveFileName: (name: string | null) => void;
   loadDemoProjects: () => void;
   restoreVersion: (files: ScriptFile[], commitMessage: string, deployRemotely?: boolean) => void;
   createInitialCommits: () => void;
@@ -184,12 +188,15 @@ export const useAppStore = create<AppStore>((set, get) => {
     // --- ui ---
     lang: 'ru',
     activeTab: 'workspace',
+    isSearchOpen: false,
     setLang: (lang) => set({ lang }),
     setActiveTab: (activeTab) => set({ activeTab }),
+    setSearchOpen: (isSearchOpen) => set({ isSearchOpen }),
 
     // --- projects ---
     allProjects: loadJson<AppsScriptProject[]>('scriptvault_all_projects', []),
     currentProject: loadJson<AppsScriptProject | null>('scriptvault_current_project', null),
+    activeFileName: null,
 
     selectProject: (project) => {
       const { allProjects, syncSettings } = get();
@@ -214,7 +221,8 @@ export const useAppStore = create<AppStore>((set, get) => {
         currentProject: project,
         allProjects: nextProjects,
         syncSettings: nextSettings,
-        activeTab: 'workspace'
+        activeTab: 'workspace',
+        activeFileName: null
       });
       persistProjects(nextProjects, project);
       if (nextSettings !== syncSettings) {
@@ -241,6 +249,8 @@ export const useAppStore = create<AppStore>((set, get) => {
       set({ allProjects: nextProjects, currentProject: nextCurrent });
       persistProjects(nextProjects, nextCurrent);
     },
+
+    setActiveFileName: (name) => set({ activeFileName: name }),
 
     loadDemoProjects: () => {
       set({
