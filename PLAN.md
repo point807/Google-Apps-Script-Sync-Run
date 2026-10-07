@@ -43,18 +43,16 @@
 
 ---
 
-## 2. Что убираем (cleanup — сделать первым, это быстро и безопасно)
+## 2. Что убираем (cleanup — сделать первым, это быстро и безопасно) ✅
 
-- [ ] Удалить `metadata.json`, `firebase-applet-config.json`.
-- [ ] Выкинуть неиспользуемые зависимости: `@google/genai`, `express`, `@types/express`, `dotenv`, `esbuild`, `tsx`, `motion`, `autoprefixer` (Tailwind 4 через vite-плагин его не требует).
-- [ ] Переписать `.env.example` под реальные переменные:
-  - `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_OAUTH_CLIENT_ID`.
-  - `firebaseAuth.ts` читает `import.meta.env.VITE_*` вместо JSON-файла.
-- [ ] Переименовать пакет `react-example` → `scriptvault`, добавить `engines`, `description`, `license`.
-- [ ] Почистить `vite.config.ts` (убрать `DISABLE_HMR`-логику), `package.json` (`clean`).
-- [ ] Сделать демо-скрипты опциональными: пустое состояние + кнопка «Загрузить пример», а не автозаполнение.
-- [ ] Поправить README: нормальные код-блоки, честные формулировки про polling, актуальная структура проекта.
-- [ ] Добавить `LICENSE` (Apache 2.0) и `.nvmrc`/`engines` (Node 18+).
+- [x] Удалить `metadata.json`, `firebase-applet-config.json`.
+- [x] Выкинуть неиспользуемые зависимости: `@google/genai`, `express`, `@types/express`, `dotenv`, `esbuild`, `tsx`, `motion`, `autoprefixer` (Tailwind 4 через vite-плагин его не требует).
+- [x] Переписать `.env.example` под реальные переменные: `VITE_FIREBASE_*` (6 переменных), `firebaseAuth.ts` читает `import.meta.env.VITE_*`.
+- [x] Переименовать пакет `react-example` → `scriptvault`, добавить `engines` (Node 18+), `description`, `license`.
+- [x] Почистить `vite.config.ts` (убрать `DISABLE_HMR`-логику), `package.json` (`clean` → `rm -rf dist`).
+- [x] Сделать демо-скрипты опциональными: пустое состояние + кнопка «Загрузить пример», а не автозаполнение (`ProjectEmptyState`).
+- [x] Поправить README: нормальные код-блоки, честные формулировки про polling, актуальная структура проекта — переписан в 0.5.0.
+- [x] Добавить `LICENSE` (Apache 2.0) и `.nvmrc`/`engines` (Node 18+).
 
 **Результат:** репозиторий выглядит и ведёт себя как нормальное standalone-приложение, `bun install` ставит только нужное.
 
@@ -81,7 +79,7 @@
 - [x] Тесты `tokenStore`: политика хранения, маскирование, миграция и вычистка легаси-ключей.
 - [ ] (опц., позже) backend-прокси для GitHub-токена — если приложение станет публичным.
 
-### Фаза C — Архитектура и хранилище (в процессе)
+### Фаза C — Архитектура и хранилище ✅ (выполнено)
 
 - [x] **Слой хранилища:** `storage.ts` на IndexedDB (`idb`) — история коммитов переехала из localStorage (квота ~5 МБ больше не теряет историю); одноразовая миграция легаси-данных с сохранностью при сбоях. `kvStorage` приготовлен для будущих снимков.
 - [x] **HTTP-клиент:** `http.ts` (`apiFetch`) — retry с exponential backoff + jitter, уважение `Retry-After`; безопасная политика: 429 ретраится всегда (запрос отклонён), сетевые ошибки/5xx — только для идемпотентных методов. Подключён ко всем трём API-сервисам (32 вызова).
@@ -90,7 +88,7 @@
   - `CodeWorkspace` (1447 → 1110): `ProjectToolbar`, `FileTabs`, `RunToolbar`, `ExecutionConsole` + `SyntaxEditor`;
   - `GitHubPanel` (1140 → 546): `BranchManager`, `RemoteCommitsFeed`;
   - `BackupDrivePanel` (677 → 352): `FolderPickerModal`, `SnapshotList`.
-- [ ] **i18n:** словари `ru.json` / `en.json` + хук `t()`, никаких строк в компонентах.
+- [x] **i18n:** центральные словари ru/en (`src/i18n/index.ts` — TS-каталог вместо отдельных JSON, типобезопасно) + хук `t()`, строки вынесены из компонентов (ru/en).
 - [x] **Синхронизация:** отмена через `AbortController` (`syncManager.cancelSync`, кнопка в Navbar), защита от параллельных запусков — `syncManager.isRunning`.
 
 ### Фаза D — Улучшения продукта (по приоритетам)
