@@ -14,6 +14,7 @@ import { BackupDrivePanel } from './components/BackupDrivePanel';
 import { ActivityLog } from './components/ActivityLog';
 import { ProjectEmptyState } from './components/ProjectEmptyState';
 import { SyncConflictModal } from './components/SyncConflictModal';
+import { ToastHost } from './components/ToastHost';
 
 export default function App() {
   const activeTab = useAppStore((s) => s.activeTab);
@@ -93,6 +94,7 @@ export default function App() {
         </div>
       </footer>
       <SyncConflictModal />
+      <ToastHost />
     </div>
   );
 }

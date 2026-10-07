@@ -46,6 +46,8 @@ export const messages = {
       clear: 'Очистить журнал',
       export: 'Экспорт журнала',
       noLogs: 'Записей в журнале пока нет. Они будут появляться по мере работы системы.',
+      errors: 'Ошибок',
+      warnings: 'Предупреждений',
       all: 'Все категории'
     },
     backup: {
@@ -254,6 +256,8 @@ export const messages = {
       clear: 'Clear Log',
       export: 'Export Log',
       noLogs: 'No log entries recorded yet.',
+      errors: 'Errors',
+      warnings: 'Warnings',
       all: 'All Categories'
     },
     backup: {

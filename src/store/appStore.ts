@@ -12,6 +12,12 @@ import { loadToken, persistGitHubConfig } from '../services/tokenStore';
 import { createCommit } from '../services/gitService';
 import { mergeProjectFiles, SyncConflictInfo } from '../services/syncMerge';
 
+export interface Toast {
+  id: number;
+  message: string;
+  type: 'error' | 'success' | 'warning' | 'info';
+}
+
 export type Lang = 'ru' | 'en';
 export type AppTab = 'workspace' | 'sheets' | 'git' | 'github' | 'drive' | 'logs';
 export type LogCategory = 'drive' | 'github' | 'git' | 'apps_script' | 'realtime';
@@ -106,11 +112,21 @@ interface AppStore {
   cancelSync: () => void;
   syncConflict: SyncConflictInfo | null;
   resolveSyncConflict: (prefer: 'local' | 'remote') => void;
+
+  // --- toasts ---
+  toasts: Toast[];
+  showToast: (message: string, type?: Toast['type']) => void;
+  dismissToast: (id: number) => void;
 }
 
 export const useAppStore = create<AppStore>((set, get) => {
+  let toastSeq = 0;
+
   const pushLogEntry = (entry: SyncLogEntry) => {
     set((state) => ({ logs: [entry, ...state.logs.slice(0, 200)] }));
+    if (entry.type === 'error') {
+      get().showToast(entry.message, 'error');
+    }
   };
 
   const persistProjects = (
@@ -441,6 +457,17 @@ export const useAppStore = create<AppStore>((set, get) => {
         'success',
         'realtime'
       );
+    },
+
+    toasts: [],
+
+    showToast: (message, type = 'info') => {
+      const id = ++toastSeq;
+      set((state) => ({ toasts: [...state.toasts, { id, message, type }].slice(-4) }));
+    },
+
+    dismissToast: (id) => {
+      set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
     }
   };
 });

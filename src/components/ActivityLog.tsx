@@ -22,6 +22,8 @@ export const ActivityLog: React.FC = () => {
   const filteredLogs = logs.filter(
     (l) => filterCategory === 'all' || l.category === filterCategory
   );
+  const errorCount = logs.filter((l) => l.type === 'error').length;
+  const warningCount = logs.filter((l) => l.type === 'warning').length;
 
   const handleExportLogs = () => {
     const text = logs
@@ -82,6 +84,16 @@ export const ActivityLog: React.FC = () => {
           <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2.5">
             <Terminal className="w-6 h-6 text-indigo-400" />
             {t.title}
+            {errorCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/30 text-xs font-semibold">
+                {t.errors}: {errorCount}
+              </span>
+            )}
+            {warningCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs font-semibold">
+                {t.warnings}: {warningCount}
+              </span>
+            )}
           </h2>
           <p className="mt-1 text-sm text-slate-400">{t.subtitle}</p>
         </div>
