@@ -97,6 +97,10 @@ const installAppsScriptIntelligence = () => {
   });
 };
 
+// Register the custom theme before the first editor instance is created. If it
+// is only registered from onMount, Monaco starts with its white default theme.
+installAppsScriptIntelligence();
+
 const languageForFile = (file: ScriptFile): string => {
   if (file.type === 'JSON' || file.name === 'appsscript') return 'json';
   if (file.type === 'HTML') return 'html';
@@ -126,8 +130,8 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
   const findSignalRef = useRef(findSignal);
 
   const handleMount: OnMount = (editor) => {
-    installAppsScriptIntelligence();
     editorRef.current = editor;
+    editor.layout();
     onEditorMount?.(editor);
   };
 

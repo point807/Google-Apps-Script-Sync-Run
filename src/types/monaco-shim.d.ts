@@ -30,6 +30,7 @@ export namespace editor {
     getValue(): string;
     setValue(value: string): void;
     updateOptions(options: unknown): void;
+    layout(): void;
     focus(): void;
     dispose(): void;
   }

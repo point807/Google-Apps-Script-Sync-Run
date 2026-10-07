@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { Search, FileCode, Folder, X, CornerDownLeft } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { searchProjects, SearchResult } from '../services/projectSearch';
@@ -21,10 +21,13 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ open, onCl
   const [query, setQuery] = useState('');
   const [selectedIdx, setSelectedIdx] = useState(0);
 
+  // Searching every file of every project on each keystroke would block typing
+  // on large workspaces — run the scan against a deferred (throttled) query.
+  const deferredQuery = useDeferredValue(query);
   const results = useMemo(() => {
-    if (!query.trim() || query.trim().length < 2) return [];
-    return searchProjects(allProjects, query);
-  }, [allProjects, query]);
+    if (!deferredQuery.trim() || deferredQuery.trim().length < 2) return [];
+    return searchProjects(allProjects, deferredQuery);
+  }, [allProjects, deferredQuery]);
 
   const handleSelect = (r: SearchResult) => {
     const proj = allProjects.find((p) => p.scriptId === r.projectId);

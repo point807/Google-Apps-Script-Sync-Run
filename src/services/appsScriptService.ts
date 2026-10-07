@@ -1,7 +1,10 @@
 import { apiFetch } from './http';
 import LocalRunnerWorker from './localRunnerWorker?worker';
-import JSZip from 'jszip';
 import { AppsScriptProject, ScriptFile } from '../types';
+import { JAVASCRIPT_IDENTIFIER_PATTERN } from './javascriptIdentifier';
+import { downloadBlob, downloadText, safeFileName } from './download';
+import { fileNameWithExtension } from './scriptFileNaming';
+import { projectToZipBlob } from './projectTransfer';
 
 const SCRIPT_API_BASE = 'https://script.googleapis.com/v1';
 
@@ -205,65 +208,16 @@ export const downloadProjectAsZip = async (
   project: AppsScriptProject,
   customZipName?: string
 ): Promise<void> => {
-  const zip = new JSZip();
-
-  // Create folder inside zip
-  const folderName = project.title.replace(/[^a-zA-Z0-9_-]/g, '_') || 'AppsScript';
-  const folder = zip.folder(folderName) || zip;
-
-  project.files.forEach((file) => {
-    let extension = '.gs';
-    if (file.type === 'HTML') extension = '.html';
-    else if (file.type === 'JSON' || file.name === 'appsscript') extension = '.json';
-    else if (file.type === 'SERVER_JS') extension = '.js';
-
-    // If file already has matching extension in name, don't double append
-    const fileName = file.name.endsWith(extension) ? file.name : `${file.name}${extension}`;
-    folder.file(fileName, file.source);
-  });
-
-  // Also include project metadata summary
-  folder.file(
-    'project-metadata.json',
-    JSON.stringify(
-      {
-        scriptId: project.scriptId,
-        title: project.title,
-        parentId: project.parentId,
-        downloadedAt: new Date().toISOString(),
-        filesCount: project.files.length
-      },
-      null,
-      2
-    )
-  );
-
-  const blob = await zip.generateAsync({ type: 'blob' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = customZipName || `${folderName}_backup_${Date.now()}.zip`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const folderName = safeFileName(project.title, 'AppsScript');
+  const blob = await projectToZipBlob(project);
+  downloadBlob(blob, safeFileName(customZipName || `${folderName}_backup_${Date.now()}`, 'project'));
 };
 
-export const downloadSingleFile = (file: ScriptFile, projectTitle: string) => {
-  let ext = '.gs';
-  if (file.type === 'HTML') ext = '.html';
-  else if (file.type === 'JSON' || file.name === 'appsscript') ext = '.json';
-
-  const fileName = file.name.endsWith(ext) ? file.name : `${file.name}${ext}`;
-  const blob = new Blob([file.source], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${projectTitle.replace(/\s+/g, '_')}_${fileName}`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+export const downloadSingleFile = (file: ScriptFile, projectTitle: string): void => {
+  downloadText(
+    file.source,
+    `${safeFileName(projectTitle, 'AppsScript')}_${fileNameWithExtension(file)}`
+  );
 };
 
 export interface FunctionRunResult {
@@ -281,93 +235,87 @@ export interface ScriptFunctionInfo {
   lineNumber?: number;
 }
 
+/**
+ * Compiled once (module scope): building these per line — as the previous
+ * implementation did — cost thousands of RegExp compilations per keystroke.
+ */
+const FUNCTION_DECLARATION_RE = new RegExp(
+  String.raw`(?:export\s+)?(?:async\s+)?function(?:\s*\*|\s+)+(${JAVASCRIPT_IDENTIFIER_PATTERN})\s*\(`,
+  'u'
+);
+const ASSIGNED_FUNCTION_RE = new RegExp(
+  String.raw`(?:const|let|var)\s+(${JAVASCRIPT_IDENTIFIER_PATTERN})\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|${JAVASCRIPT_IDENTIFIER_PATTERN}\s*=>)`,
+  'u'
+);
+const OBJECT_METHOD_RE = new RegExp(
+  String.raw`^\s*(${JAVASCRIPT_IDENTIFIER_PATTERN})\s*:\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>)`,
+  'u'
+);
+const GLOBAL_ASSIGNMENT_RE = new RegExp(
+  String.raw`(?:this|globalThis|window)\.(${JAVASCRIPT_IDENTIFIER_PATTERN})\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>)`,
+  'u'
+);
+const FALLBACK_SCAN_RE = new RegExp(
+  String.raw`(?:function(?:\s*\*|\s+)+(${JAVASCRIPT_IDENTIFIER_PATTERN})\s*\(|(?:const|let|var)\s+(${JAVASCRIPT_IDENTIFIER_PATTERN})\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|${JAVASCRIPT_IDENTIFIER_PATTERN}\s*=>))`,
+  'gu'
+);
+
+const IGNORED_FUNCTION_KEYWORDS = new Set([
+  'if',
+  'for',
+  'while',
+  'switch',
+  'catch',
+  'with',
+  'function',
+  'return',
+  'import',
+  'export',
+  'class',
+  'new',
+  'typeof',
+  'instanceof'
+]);
+
 export const extractFunctionsFromCode = (
   source: string,
   fileName: string = ''
 ): ScriptFunctionInfo[] => {
   if (!source) return [];
+
+  // Cheap bail-out: every supported form needs one of these two tokens.
+  if (!source.includes('function') && !source.includes('=>')) return [];
+
   const results: ScriptFunctionInfo[] = [];
   const seen = new Set<string>();
-  const ignoreKeywords = new Set([
-    'if',
-    'for',
-    'while',
-    'switch',
-    'catch',
-    'with',
-    'function',
-    'return',
-    'import',
-    'export',
-    'class',
-    'new',
-    'typeof',
-    'instanceof'
-  ]);
+
+  const push = (match: RegExpMatchArray | null, lineNumber: number) => {
+    const name = match?.[1];
+    if (!name || seen.has(name) || IGNORED_FUNCTION_KEYWORDS.has(name)) return;
+    seen.add(name);
+    results.push({ name, fileName, lineNumber });
+  };
 
   const lines = source.split('\n');
-
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const trimmed = line.trim();
-    if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) continue;
+    const trimmed = line.trimStart();
+    if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) continue;
 
-    // 1. function name(...) or async function name(...) or export function name(...)
-    const funcMatch = line.match(
-      /(?:export\s+)?(?:async\s+)?function(?:\s*\*|\s+)+([a-zA-Z0-9_$]+)\s*\(/
-    );
-    if (funcMatch && funcMatch[1]) {
-      const name = funcMatch[1];
-      if (!seen.has(name) && !ignoreKeywords.has(name)) {
-        seen.add(name);
-        results.push({ name, fileName, lineNumber: i + 1 });
-      }
-    }
-
-    // 2. const/let/var name = ... (arrow functions or function expressions)
-    const varFuncMatch = line.match(
-      /(?:const|let|var)\s+([a-zA-Z0-9_$]+)\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|[a-zA-Z0-9_$]+\s*=>)/
-    );
-    if (varFuncMatch && varFuncMatch[1]) {
-      const name = varFuncMatch[1];
-      if (!seen.has(name) && !ignoreKeywords.has(name)) {
-        seen.add(name);
-        results.push({ name, fileName, lineNumber: i + 1 });
-      }
-    }
-
-    // 3. name: function(...) or name: (...) => ... (object methods)
-    const objFuncMatch = line.match(
-      /^\s*([a-zA-Z0-9_$]+)\s*:\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>)/
-    );
-    if (objFuncMatch && objFuncMatch[1]) {
-      const name = objFuncMatch[1];
-      if (!seen.has(name) && !ignoreKeywords.has(name)) {
-        seen.add(name);
-        results.push({ name, fileName, lineNumber: i + 1 });
-      }
-    }
-
-    // 4. this.name = ... or globalThis.name = ...
-    const globalMatch = line.match(
-      /(?:this|globalThis|window)\.([a-zA-Z0-9_$]+)\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>)/
-    );
-    if (globalMatch && globalMatch[1]) {
-      const name = globalMatch[1];
-      if (!seen.has(name) && !ignoreKeywords.has(name)) {
-        seen.add(name);
-        results.push({ name, fileName, lineNumber: i + 1 });
-      }
-    }
+    push(line.match(FUNCTION_DECLARATION_RE), i + 1);
+    push(line.match(ASSIGNED_FUNCTION_RE), i + 1);
+    push(line.match(OBJECT_METHOD_RE), i + 1);
+    push(line.match(GLOBAL_ASSIGNMENT_RE), i + 1);
   }
 
-  // Fallback global regex scan to ensure multi-line declarations are also caught
-  const globalRegex =
-    /(?:function\s+([a-zA-Z0-9_$]+)\s*\(|(?:const|let|var)\s+([a-zA-Z0-9_$]+)\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|[a-zA-Z0-9_$]+\s*=>))/g;
-  let match;
-  while ((match = globalRegex.exec(source)) !== null) {
+  // Fallback scan for declarations the per-line pass cannot see (multi-line
+  // signatures, declarations after code on the same line). These entries have
+  // no line number, exactly as before.
+  FALLBACK_SCAN_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = FALLBACK_SCAN_RE.exec(source)) !== null) {
     const fnName = match[1] || match[2];
-    if (fnName && !seen.has(fnName) && !ignoreKeywords.has(fnName)) {
+    if (fnName && !seen.has(fnName) && !IGNORED_FUNCTION_KEYWORDS.has(fnName)) {
       seen.add(fnName);
       results.push({ name: fnName, fileName });
     }
@@ -392,11 +340,6 @@ export const extractAllScriptFunctions = (files: ScriptFile[]): ScriptFunctionIn
   });
 
   return all;
-};
-
-export const extractScriptFunctionNames = (files: ScriptFile[]): string[] => {
-  const funcs = extractAllScriptFunctions(files);
-  return Array.from(new Set(funcs.map((f) => f.name)));
 };
 
 export interface ScriptVersion {

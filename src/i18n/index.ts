@@ -221,6 +221,34 @@ export const messages = {
         `Вы уверены, что хотите удалить ветку "${branch}" из репозитория ${repo}? Это действие нельзя отменить.`,
       cannotDeleteActive: 'Нельзя удалить активную или защищенную ветку'
     },
+    transfer: {
+      button: 'Файлы',
+      menuTitle: 'Импорт и экспорт скриптов',
+      exportZip: 'Скачать ZIP-архив',
+      exportBundle: 'Скачать бандл ScriptVault (JSON)',
+      exportContent: 'Скачать JSON для Apps Script API',
+      exportFiles: 'Скачать файлы по отдельности',
+      importLabel: 'Импорт из файлов…',
+      importHint: 'Поддерживаются .zip, бандл .json, а также .gs, .js, .html и appsscript.json',
+      importOnlyLabel: 'Импортировать скрипт из файлов',
+      importOnlyHint: 'ZIP-архив, бандл ScriptVault (.json) или отдельные файлы кода',
+      importing: 'Импорт…',
+      downloaded: 'Файл сохранён',
+      imported: 'Импортирован проект',
+      reimported: 'Обновлён проект',
+      filesCount: 'файлов',
+      bindChip: 'Локальный проект — привязать Script ID',
+      bindTitle: 'Привязать проект к Google Apps Script',
+      bindDesc:
+        'Проект импортирован из файлов и существует только в браузере. Укажите Script ID реального проекта Apps Script, чтобы отправлять код в Google, создавать версии и деплои.',
+      bindWarning:
+        'Внимание: при первой отправке код в Google Apps Script будет перезаписан содержимым этого проекта.',
+      bindPlaceholder: 'https://script.google.com/home/projects/…/edit или Script ID',
+      bindSubmit: 'Привязать',
+      bindCancel: 'Отмена',
+      bindSuccess: 'Проект привязан к Google Apps Script',
+      close: 'Закрыть'
+    },
     sheets: {
       title: 'Google Таблицы и Apps Script',
       subtitle:
@@ -464,6 +492,34 @@ export const messages = {
       deleteBranchConfirmDesc: (branch: string, repo: string) =>
         `Are you sure you want to delete branch "${branch}" in repository ${repo}? This action cannot be undone.`,
       cannotDeleteActive: 'Cannot delete active or protected branch'
+    },
+    transfer: {
+      button: 'Files',
+      menuTitle: 'Import & export scripts',
+      exportZip: 'Download ZIP archive',
+      exportBundle: 'Download ScriptVault bundle (JSON)',
+      exportContent: 'Download JSON for Apps Script API',
+      exportFiles: 'Download files separately',
+      importLabel: 'Import from files…',
+      importHint: 'Supports .zip, ScriptVault .json bundles and loose .gs, .js, .html, appsscript.json files',
+      importOnlyLabel: 'Import a script from files',
+      importOnlyHint: 'ZIP archive, ScriptVault bundle (.json) or individual source files',
+      importing: 'Importing…',
+      downloaded: 'File saved',
+      imported: 'Project imported',
+      reimported: 'Project updated',
+      filesCount: 'files',
+      bindChip: 'Local project — bind a Script ID',
+      bindTitle: 'Bind project to Google Apps Script',
+      bindDesc:
+        'This project was imported from files and lives in the browser only. Provide the Script ID of a real Apps Script project to push code to Google, create versions and deployments.',
+      bindWarning:
+        'Careful: the first push overwrites the code of that Google Apps Script project with this project.',
+      bindPlaceholder: 'https://script.google.com/home/projects/…/edit or Script ID',
+      bindSubmit: 'Bind',
+      bindCancel: 'Cancel',
+      bindSuccess: 'Project bound to Google Apps Script',
+      close: 'Close'
     },
     sheets: {
       title: 'Google Sheets & Apps Script',

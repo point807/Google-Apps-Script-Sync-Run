@@ -4,10 +4,12 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  extractAllScriptFunctions,
   extractFunctionsFromCode,
   extractScriptId,
   extractSpreadsheetId,
 } from './appsScriptService';
+import { SAMPLE_SHEETS_SCRIPTS } from './sampleScripts';
 
 describe('extractScriptId', () => {
   it('extracts id from the editor URL', () => {
@@ -106,5 +108,58 @@ describe('extractFunctionsFromCode', () => {
 
   it('returns empty list for empty source', () => {
     expect(extractFunctionsFromCode('')).toEqual([]);
+  });
+
+  it('finds function declarations with Cyrillic (Russian) names', () => {
+    const source = [
+      'function отправитьОтчёт() {}',
+      'async function получитьДанные() {}',
+      'const посчитатьСумму = () => 1;',
+      'const обработка = function (e) {};'
+    ].join('\n');
+    const funcs = extractFunctionsFromCode(source, 'Код');
+    expect(funcs.map((f) => f.name)).toEqual([
+      'отправитьОтчёт',
+      'получитьДанные',
+      'посчитатьСумму',
+      'обработка'
+    ]);
+    expect(funcs.every((f) => f.fileName === 'Код')).toBe(true);
+  });
+
+  it('keeps line numbers for Cyrillic declarations', () => {
+    const funcs = extractFunctionsFromCode('// комментарий\nfunction Сумма() {}', 'Код');
+    expect(funcs).toEqual([{ name: 'Сумма', fileName: 'Код', lineNumber: 2 }]);
+  });
+
+  it('does not truncate identifiers mixing Latin and Cyrillic letters', () => {
+    const names = extractFunctionsFromCode('function logОшибку() {}').map((f) => f.name);
+    expect(names).toEqual(['logОшибку']);
+  });
+
+  it('finds the Russian-named function shipped in the demo CRM script', () => {
+    const demo = SAMPLE_SHEETS_SCRIPTS.find((p) => p.scriptId.startsWith('1DEMO_LEADS'));
+    expect(demo).toBeDefined();
+    const names = extractAllScriptFunctions(demo!.files).map((f) => f.name);
+    expect(names).toContain('отправитьПриветствие');
+  });
+});
+
+describe('function extraction performance guard', () => {
+  it('handles large files without pathological behaviour', () => {
+    const lines: string[] = [];
+    for (let i = 0; i < 1500; i++) {
+      lines.push(`function fn${i}() { return ${i}; }`);
+      lines.push(`  const value${i} = ${i} * 2;`);
+    }
+    const source = lines.join('\n');
+    const started = Date.now();
+    const funcs = extractFunctionsFromCode(source, 'Big');
+    const elapsed = Date.now() - started;
+
+    expect(funcs.filter((f) => f.name.startsWith('fn'))).toHaveLength(1500);
+    // Patterns are compiled once at module scope; anything above this bound
+    // means per-line RegExp construction crept back in.
+    expect(elapsed).toBeLessThan(500);
   });
 });

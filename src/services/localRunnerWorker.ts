@@ -11,6 +11,7 @@
  * logs/result/error via postMessage. This is an EMULATION with limits (see the
  * warning in ExecutionConsole), not a real Apps Script runtime.
  */
+import { isJavaScriptIdentifier } from './javascriptIdentifier';
 
 interface RunnerRequest {
   code: string;
@@ -35,6 +36,10 @@ ctx.onmessage = async (e: MessageEvent<RunnerRequest>) => {
   const capturedLogs: string[] = [];
 
   try {
+    if (!isJavaScriptIdentifier(functionName)) {
+      throw new Error('Некорректное имя функции.');
+    }
+
     const mockLogger = {
       log: (...args: unknown[]) => {
         const text = args
@@ -110,7 +115,7 @@ ctx.onmessage = async (e: MessageEvent<RunnerRequest>) => {
       `
         ${code}
         if (typeof ${functionName} !== 'function') {
-          throw new Error('Функция "' + '${functionName}' + '" не найдена в коде проекта.');
+          throw new Error('Функция не найдена в коде проекта.');
         }
         return ${functionName}(...params);
       `

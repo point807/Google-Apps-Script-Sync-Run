@@ -14,6 +14,7 @@ import {
   parseSnapshotPayload
 } from '../services/googleDriveService';
 import { updateAppsScriptProject } from '../services/appsScriptService';
+import { isCloudBoundProject } from '../services/projectOrigin';
 
 /** Stored Drive snapshots with a preview modal. */
 export const SnapshotList: React.FC = () => {
@@ -69,7 +70,7 @@ export const SnapshotList: React.FC = () => {
       const payload = parseSnapshotPayload(text);
       const message = `Восстановление из снимка Drive: ${snapshot.fileName}`;
       onRestoreVersion(payload.files, message, restoreDeploy);
-      if (restoreDeploy && !payload.scriptId.startsWith('1DEMO_')) {
+      if (restoreDeploy && isCloudBoundProject({ scriptId: payload.scriptId })) {
         onLog(
           `Отправка восстановленного кода в Google Apps Script (${payload.scriptId})...`,
           'info'

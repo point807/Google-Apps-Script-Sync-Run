@@ -16,13 +16,10 @@ import {
   X,
   FileCheck,
   RefreshCw,
-  Play,
-  Terminal,
   Github
 } from 'lucide-react';
 import { ScriptFile } from '../types';
 import {
-  downloadProjectAsZip,
   updateAppsScriptProject,
   fetchAppsScriptProject,
   runAppsScriptFunction,
@@ -32,6 +29,7 @@ import {
 } from '../services/appsScriptService';
 import { pushFilesToGitHub } from '../services/githubService';
 import { createCommit, computeProjectDiff } from '../services/gitService';
+import { isCloudBoundProject } from '../services/projectOrigin';
 import { SyntaxEditor } from './SyntaxEditor';
 import { useT } from '../i18n';
 
@@ -70,7 +68,6 @@ export const CodeWorkspace: React.FC = () => {
   const [isSavingEverywhere, setIsSavingEverywhere] = useState(false);
 
   // Script Runner & Testing State
-  const [showRunModal, setShowRunModal] = useState(false);
   const [selectedFunction, setSelectedFunction] = useState<string>('');
   const [isRunningFunction, setIsRunningFunction] = useState(false);
   const [runResult, setRunResult] = useState<FunctionRunResult | null>(null);
@@ -102,15 +99,30 @@ export const CodeWorkspace: React.FC = () => {
     }
   }, [activeFileName, project.files, setActiveFileName]);
 
-  // Compute live diff against baseline
-  const projectDiff = computeProjectDiff(baselineFiles, project.files);
-  const modifiedFiles = projectDiff.files.filter((f) => f.status === 'modified');
-  const addedFiles = projectDiff.files.filter((f) => f.status === 'added');
-  const deletedFiles = projectDiff.files.filter((f) => f.status === 'deleted');
-  const unchangedFiles = projectDiff.files.filter((f) => f.status === 'unchanged');
-  const totalChangedCount = modifiedFiles.length + addedFiles.length + deletedFiles.length;
+  // Live diff against the baseline. The line-by-line diff of every changed file
+  // is the most expensive thing on this screen, so it must not run on renders
+  // that only touch unrelated state (modals, console, run results).
+  const { modifiedFiles, addedFiles, deletedFiles, unchangedFiles, totalChangedCount } =
+    useMemo(() => {
+      const diff = computeProjectDiff(baselineFiles, project.files);
+      const byStatus = (status: string) => diff.files.filter((f) => f.status === status);
+      const modified = byStatus('modified');
+      const added = byStatus('added');
+      const deleted = byStatus('deleted');
+      return {
+        modifiedFiles: modified,
+        addedFiles: added,
+        deletedFiles: deleted,
+        unchangedFiles: byStatus('unchanged'),
+        totalChangedCount: modified.length + added.length + deleted.length
+      };
+    }, [baselineFiles, project.files]);
 
   const currentFile: ScriptFile | undefined = project.files[selectedFileIndex] || project.files[0];
+
+  // Stable prop identities: children stay memo-friendly while typing.
+  const modifiedFileNames = useMemo(() => modifiedFiles.map((f) => f.fileName), [modifiedFiles]);
+  const addedFileNames = useMemo(() => addedFiles.map((f) => f.fileName), [addedFiles]);
 
   const t = useT('code');
 
@@ -188,6 +200,14 @@ export const CodeWorkspace: React.FC = () => {
   const handleConfirmPush = async () => {
     if (!accessToken) {
       alert('Необходимо выполнить вход через Google для отправки в Apps Script API.');
+      return;
+    }
+    if (!isCloudBoundProject(project)) {
+      alert(
+        'Проект не привязан к Google Apps Script (импортирован из файлов).\n\n' +
+          'Нажмите на ID проекта в шапке и укажите Script ID — после этого код можно будет ' +
+          'отправлять в Google, а также создавать версии и деплои.'
+      );
       return;
     }
 
@@ -299,7 +319,7 @@ export const CodeWorkspace: React.FC = () => {
   const currentFileFunctions = useMemo(() => {
     if (!currentFile) return [];
     return extractFunctionsFromCode(currentFile.source || '', currentFile.name);
-  }, [currentFile?.source, currentFile?.name]);
+  }, [currentFile]);
 
   // Extract functions from all files
   const allProjectFunctions = useMemo(() => {
@@ -309,7 +329,7 @@ export const CodeWorkspace: React.FC = () => {
   const otherFilesFunctions = useMemo(() => {
     if (!currentFile) return allProjectFunctions;
     return allProjectFunctions.filter((f) => f.fileName !== currentFile.name);
-  }, [allProjectFunctions, currentFile?.name]);
+  }, [allProjectFunctions, currentFile]);
 
   // Automatically update selected function when current file changes
   useEffect(() => {
@@ -473,10 +493,6 @@ export const CodeWorkspace: React.FC = () => {
         }}
         onSaveEverywhere={handleSaveEverywhere}
         onCreateCommit={() => setShowCommitModal(true)}
-        onDownloadZip={() => {
-          downloadProjectAsZip(project);
-          onLog(`Скачан ZIP-архив проекта ${project.title}`, 'info');
-        }}
       />
 
       {/* Editor & File Tabs Container */}
@@ -485,8 +501,8 @@ export const CodeWorkspace: React.FC = () => {
           files={project.files}
           selectedFileIndex={selectedFileIndex}
           onSelectFile={setSelectedFileIndex}
-          modifiedFileNames={modifiedFiles.map((m) => m.fileName)}
-          addedFileNames={addedFiles.map((a) => a.fileName)}
+          modifiedFileNames={modifiedFileNames}
+          addedFileNames={addedFileNames}
           onDeleteFile={handleDeleteFile}
           onAddFile={() => setShowAddFileModal(true)}
           currentFile={currentFile}
@@ -507,8 +523,9 @@ export const CodeWorkspace: React.FC = () => {
           onOpenDeployments={() => setShowDeployments(true)}
         />
 
-        {/* Editor Area */}
-        <div className="relative bg-slate-950 flex-1">
+        {/* Editor Area — explicit viewport height so Monaco always has a
+            measurable box (a zero-height parent renders an invisible editor) */}
+        <div className="relative bg-slate-950 flex-1 min-h-[280px] h-[55vh] lg:h-[62vh]">
           {currentFile ? (
             <SyntaxEditor file={currentFile} onChange={handleSourceChange} lang={lang} />
           ) : (
@@ -938,196 +955,6 @@ export const CodeWorkspace: React.FC = () => {
                     <span>Сохранить в папку на GitHub</span>
                   </>
                 )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal: Run / Test Apps Script Function */}
-      {showRunModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-xl w-full shadow-2xl text-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  <Play className="w-5 h-5 fill-emerald-400" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-white">
-                    Запуск и проверка функций скрипта
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Тестируйте функции проекта с просмотром логов Logger.log и возвращаемых значений
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowRunModal(false)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Function Selector & Execution Trigger */}
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Выберите функцию для выполнения:
-                </label>
-                <div className="flex items-center gap-2">
-                  {currentFileFunctions.length > 0 || otherFilesFunctions.length > 0 ? (
-                    <select
-                      value={selectedFunction}
-                      onChange={(e) => setSelectedFunction(e.target.value)}
-                      className="flex-1 px-3.5 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white font-mono focus:outline-none focus:border-emerald-500"
-                    >
-                      {currentFileFunctions.length > 0 && (
-                        <optgroup label={`Функции в этом файле (${currentFile?.name})`}>
-                          {currentFileFunctions.map((fn) => (
-                            <option
-                              key={`modal-curr-${fn.name}`}
-                              value={fn.name}
-                              className="bg-slate-900 text-emerald-300"
-                            >
-                              ▶ {fn.name}()
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                      {otherFilesFunctions.length > 0 && (
-                        <optgroup label={`Другие файлы проекта`}>
-                          {otherFilesFunctions.map((fn) => (
-                            <option
-                              key={`modal-other-${fn.fileName}-${fn.name}`}
-                              value={fn.name}
-                              className="bg-slate-900 text-slate-300"
-                            >
-                              {fn.name}() [{fn.fileName}]
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      value={selectedFunction}
-                      onChange={(e) => setSelectedFunction(e.target.value)}
-                      placeholder="Имя функции (например: myFunction)"
-                      className="flex-1 px-3.5 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white font-mono focus:outline-none focus:border-emerald-500"
-                    />
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={handleExecuteFunction}
-                    disabled={isRunningFunction || !selectedFunction}
-                    className="px-4 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-lg shadow-emerald-600/20 transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50 shrink-0"
-                  >
-                    {isRunningFunction ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        <span>Выполнение...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-3.5 h-3.5 fill-white" />
-                        <span>Запустить</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Execution Results Console */}
-              {runResult && (
-                <div className="space-y-3 pt-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full font-semibold text-[11px] flex items-center gap-1.5 ${
-                          runResult.status === 'success'
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                        }`}
-                      >
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            runResult.status === 'success' ? 'bg-emerald-400' : 'bg-rose-400'
-                          }`}
-                        />
-                        <span>{runResult.status === 'success' ? 'Успешно' : 'Ошибка'}</span>
-                      </span>
-
-                      <span className="text-slate-400 font-mono text-[11px]">
-                        {runResult.durationMs} ms
-                      </span>
-                    </div>
-
-                    <span className="text-[10px] text-slate-500 font-mono uppercase">
-                      {runResult.source === 'cloud' ? 'Google Cloud API' : 'Apps Script Runner'}
-                    </span>
-                  </div>
-
-                  {/* Error if present */}
-                  {runResult.error && (
-                    <div className="p-3 bg-rose-950/30 border border-rose-500/30 rounded-xl text-xs text-rose-300 font-mono">
-                      <div className="font-bold mb-1">Ошибка:</div>
-                      <div>{runResult.error}</div>
-                    </div>
-                  )}
-
-                  {/* Return Value */}
-                  {runResult.status === 'success' && (
-                    <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
-                      <div className="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">
-                        Возвращенное значение (Return Value):
-                      </div>
-                      <pre className="text-xs font-mono text-emerald-400 overflow-x-auto m-0">
-                        {typeof runResult.result === 'object'
-                          ? JSON.stringify(runResult.result, null, 2)
-                          : String(runResult.result)}
-                      </pre>
-                    </div>
-                  )}
-
-                  {/* Execution Logs */}
-                  <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1.5">
-                    <div className="text-[10px] uppercase font-semibold text-slate-500 tracking-wider flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <Terminal className="w-3 h-3 text-slate-400" />
-                        <span>Журнал выполнения (Logger.log):</span>
-                      </span>
-                      <span className="text-[10px] text-slate-600 font-mono">
-                        {runResult.logs.length} строк
-                      </span>
-                    </div>
-
-                    <div className="space-y-1 font-mono text-xs max-h-48 overflow-y-auto">
-                      {runResult.logs.map((logLine, idx) => (
-                        <div
-                          key={idx}
-                          className="text-slate-300 leading-relaxed border-l-2 border-slate-700 pl-2"
-                        >
-                          {logLine}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end pt-3 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => setShowRunModal(false)}
-                className="px-4 py-2 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition cursor-pointer"
-              >
-                Закрыть
               </button>
             </div>
           </div>

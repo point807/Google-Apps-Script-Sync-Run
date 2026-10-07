@@ -9,10 +9,11 @@ import {
   UploadCloud,
   Github,
   Save,
-  GitCommit as GitCommitIcon,
-  Archive
+  GitCommit as GitCommitIcon
 } from 'lucide-react';
 import { AppsScriptProject } from '../types';
+import { ProjectFilesMenu } from './ProjectFilesMenu';
+import { BindScriptIdButton } from './BindScriptIdButton';
 
 export interface ProjectToolbarProps {
   project: AppsScriptProject;
@@ -24,7 +25,6 @@ export interface ProjectToolbarProps {
   onSaveToGitHub: () => void;
   onSaveEverywhere: () => void;
   onCreateCommit: () => void;
-  onDownloadZip: () => void;
 }
 
 /** Workspace banner: project identity, change badges and the five action buttons. */
@@ -37,8 +37,7 @@ export const ProjectToolbar: React.FC<ProjectToolbarProps> = ({
   onPushToGoogle,
   onSaveToGitHub,
   onSaveEverywhere,
-  onCreateCommit,
-  onDownloadZip
+  onCreateCommit
 }) => {
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -51,6 +50,7 @@ export const ProjectToolbar: React.FC<ProjectToolbarProps> = ({
           <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
             ID: {project.scriptId.slice(0, 16)}...
           </span>
+          <BindScriptIdButton />
 
           {totalChangedCount > 0 ? (
             <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 flex items-center gap-1.5 animate-pulse">
@@ -129,15 +129,8 @@ export const ProjectToolbar: React.FC<ProjectToolbarProps> = ({
           <span>Git</span>
         </button>
 
-        {/* 5. Download ZIP */}
-        <button
-          type="button"
-          onClick={onDownloadZip}
-          className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition cursor-pointer"
-          title="Скачать ZIP-архив проекта"
-        >
-          <Archive className="w-3.5 h-3.5" />
-        </button>
+        {/* 5. Import / export (ZIP, JSON bundle, Apps Script JSON, files) */}
+        <ProjectFilesMenu project={project} />
       </div>
     </div>
   );

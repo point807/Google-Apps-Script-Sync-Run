@@ -284,19 +284,17 @@ export const createCommit = async (
   const commits = await loadCommits(scriptId);
   const lastCommit = commits.length > 0 ? commits[0] : null;
 
-  // Check if there are changes compared to last commit
-  if (lastCommit && !options.force) {
-    const diff = computeProjectDiff(lastCommit.files, files);
-    if (!diff.hasChanges) {
-      return null; // No changes to commit
-    }
+  // Diff against the previous snapshot once — it is the most expensive step of
+  // a commit (line-by-line diff of every changed file).
+  const diffSummary = lastCommit ? computeProjectDiff(lastCommit.files, files) : null;
+
+  if (diffSummary && !options.force && !diffSummary.hasChanges) {
+    return null; // No changes to commit
   }
 
   const timestamp = Date.now();
   const seed = `${scriptId}-${timestamp}-${message}-${files.map((f) => f.name + f.source.length).join(',')}`;
   const commitId = generateCommitSha(seed);
-
-  const diffSummary = lastCommit ? computeProjectDiff(lastCommit.files, files) : null;
 
   const newCommit: GitCommit = {
     id: commitId,
@@ -305,7 +303,7 @@ export const createCommit = async (
     timestamp,
     parentId: lastCommit ? lastCommit.id : undefined,
     branch,
-    files: JSON.parse(JSON.stringify(files)),
+    files: files.map((f) => ({ ...f })),
     summary: diffSummary
       ? {
           filesChanged: diffSummary.filesChanged,

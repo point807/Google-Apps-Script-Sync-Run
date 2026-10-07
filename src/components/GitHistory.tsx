@@ -20,6 +20,7 @@ import {
 import { GitCommit } from '../types';
 import { loadCommits, computeProjectDiff, ProjectDiff } from '../services/gitService';
 import { downloadProjectAsZip, updateAppsScriptProject } from '../services/appsScriptService';
+import { isCloudBoundProject } from '../services/projectOrigin';
 import { useT } from '../i18n';
 
 export const GitHistory: React.FC = () => {
@@ -99,7 +100,7 @@ export const GitHistory: React.FC = () => {
       onRestoreVersion(commitToRollback.files, rollbackMsg, deployRemotelyOnRollback);
 
       // 2. If requested, deploy directly to live Google Apps Script
-      if (deployRemotelyOnRollback && accessToken && !activeScript.scriptId.startsWith('1DEMO_')) {
+      if (deployRemotelyOnRollback && accessToken && isCloudBoundProject(activeScript)) {
         onLog(
           `Развертывание восстановленной версии в Google Apps Script (${activeScript.scriptId})...`,
           'info'

@@ -5,6 +5,7 @@
 import React from 'react';
 import { useAppStore } from '../store/appStore';
 import { FolderGit2, Sparkles, Plug } from 'lucide-react';
+import { ProjectImportButton } from './ProjectFilesMenu';
 
 export const ProjectEmptyState: React.FC = () => {
   const lang = useAppStore((s) => s.lang);
@@ -35,7 +36,7 @@ export const ProjectEmptyState: React.FC = () => {
       </div>
       <h2 className="mt-5 text-xl font-bold text-white tracking-tight">{t.title}</h2>
       <p className="mt-2 text-sm text-slate-400 max-w-md mx-auto">{t.description}</p>
-      <div className="mt-6 flex items-center justify-center gap-3">
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         <button
           onClick={onGoConnect}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-colors"
@@ -43,6 +44,7 @@ export const ProjectEmptyState: React.FC = () => {
           <Plug className="w-4 h-4" />
           {t.connect}
         </button>
+        <ProjectImportButton />
         <button
           onClick={onLoadDemo}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold transition-colors border border-slate-700"

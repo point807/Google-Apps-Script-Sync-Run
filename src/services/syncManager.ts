@@ -3,6 +3,7 @@ import { mergeProjectFiles, SyncConflictInfo } from './syncMerge';
 import { loadCommits } from './gitService';
 import { createCommit } from './gitService';
 import { fetchAppsScriptProject } from './appsScriptService';
+import { isCloudBoundProject } from './projectOrigin';
 import { getOrCreateBackupFolder, saveSnapshotToDrive } from './googleDriveService';
 import { pushFilesToGitHub } from './githubService';
 
@@ -201,7 +202,7 @@ export class SyncCoordinator {
     let liveProject = project;
 
     // 1. Fetch live content from Google Apps Script if real script
-    if (accessToken && !project.scriptId.startsWith('1DEMO_')) {
+    if (accessToken && isCloudBoundProject(project)) {
       try {
         const fresh = await fetchAppsScriptProject(project.scriptId, accessToken);
         liveProject = {
