@@ -59,7 +59,7 @@ export const fetchAppsScriptProject = async (
   ) {
     throw new Error(
       `Некорректный идентификатор скрипта: "${scriptId}".\n` +
-      `Пожалуйста, укажите ссылку на редактор Apps Script (например, https://script.google.com/home/projects/.../edit) или Script ID из настроек проекта (⚙️).`
+        `Пожалуйста, укажите ссылку на редактор Apps Script (например, https://script.google.com/home/projects/.../edit) или Script ID из настроек проекта (⚙️).`
     );
   }
 
@@ -69,7 +69,7 @@ export const fetchAppsScriptProject = async (
 
   try {
     const metaRes = await fetch(`${SCRIPT_API_BASE}/projects/${cleanScriptId}`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}` }
     });
     if (metaRes.ok) {
       const meta = await metaRes.json();
@@ -84,15 +84,16 @@ export const fetchAppsScriptProject = async (
   let contentRes: Response;
   try {
     contentRes = await fetch(`${SCRIPT_API_BASE}/projects/${cleanScriptId}/content`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}` }
     });
   } catch (netErr: any) {
     throw new Error(
       `Сетевая ошибка при обращении к Apps Script API (${netErr.message || 'Failed to fetch'}).\n\n` +
-      `Возможные причины:\n` +
-      `1. В браузере включен блокировщик (AdBlock, uBlock, Brave Shields), блокирующий запросы к *.googleapis.com. Попробуйте временно отключить его для этого сайта.\n` +
-      `2. Сессия авторизации Google устарела — нажмите «Выйти» и войдите заново через Google.\n` +
-      `3. Нестабильное сетевое соединение.`
+        `Возможные причины:\n` +
+        `1. В браузере включен блокировщик (AdBlock, uBlock, Brave Shields), блокирующий запросы к *.googleapis.com. Попробуйте временно отключить его для этого сайта.\n` +
+        `2. Сессия авторизации Google устарела — нажмите «Выйти» и войдите заново через Google.\n` +
+        `3. Нестабильное сетевое соединение.`,
+      { cause: netErr }
     );
   }
 
@@ -126,9 +127,9 @@ export const fetchAppsScriptProject = async (
         const proj = match ? match[1] : '385972489711';
         throw new Error(
           `GCP_API_DISABLED: В облачном проекте Google Cloud не активирован сервис Apps Script API.\n\n` +
-          `Пожалуйста, перейдите по ссылке и нажмите синюю кнопку "ВКЛЮЧИТЬ" (ENABLE):\n` +
-          `https://console.developers.google.com/apis/api/script.googleapis.com/overview?project=${proj}\n\n` +
-          `(После активации изменения вступают в силу в течение 1–2 минут).`
+            `Пожалуйста, перейдите по ссылке и нажмите синюю кнопку "ВКЛЮЧИТЬ" (ENABLE):\n` +
+            `https://console.developers.google.com/apis/api/script.googleapis.com/overview?project=${proj}\n\n` +
+            `(После активации изменения вступают в силу в течение 1–2 минут).`
         );
       }
 
@@ -141,12 +142,12 @@ export const fetchAppsScriptProject = async (
       if (parsedMsg.toLowerCase().includes('invalid script key')) {
         throw new Error(
           `INVALID_SCRIPT_KEY: Указан неверный ключ скрипта (Invalid script key).\n\n` +
-          `Вы вставили идентификатор таблицы Google Sheets вместо идентификатора скрипта Apps Script.\n` +
-          `У таблицы и встроенного в нее скрипта разные ID.\n\n` +
-          `Как получить правильный Script ID:\n` +
-          `1. Откройте таблицу в Google и выберите в меню: «Расширения» → «Apps Script».\n` +
-          `2. В открывшемся редакторе скриптов скопируйте URL из адресной строки браузера (https://script.google.com/home/projects/.../edit) или нажмите на значок шестеренки слева (⚙️ Настройки проекта) и скопируйте «Идентификатор скрипта».\n` +
-          `3. Вставьте скопированный URL или Script ID.`
+            `Вы вставили идентификатор таблицы Google Sheets вместо идентификатора скрипта Apps Script.\n` +
+            `У таблицы и встроенного в нее скрипта разные ID.\n\n` +
+            `Как получить правильный Script ID:\n` +
+            `1. Откройте таблицу в Google и выберите в меню: «Расширения» → «Apps Script».\n` +
+            `2. В открывшемся редакторе скриптов скопируйте URL из адресной строки браузера (https://script.google.com/home/projects/.../edit) или нажмите на значок шестеренки слева (⚙️ Настройки проекта) и скопируйте «Идентификатор скрипта».\n` +
+            `3. Вставьте скопированный URL или Script ID.`
         );
       }
     }
@@ -158,7 +159,7 @@ export const fetchAppsScriptProject = async (
   const files: ScriptFile[] = (content.files || []).map((f: any) => ({
     name: f.name,
     type: f.type || 'SERVER_JS',
-    source: f.source || '',
+    source: f.source || ''
   }));
 
   return {
@@ -166,7 +167,7 @@ export const fetchAppsScriptProject = async (
     title,
     parentId,
     files,
-    lastModified: new Date().toISOString(),
+    lastModified: new Date().toISOString()
   };
 };
 
@@ -181,15 +182,15 @@ export const updateAppsScriptProject = async (
     method: 'PUT',
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
       files: files.map((f) => ({
         name: f.name,
         type: f.type,
-        source: f.source,
-      })),
-    }),
+        source: f.source
+      }))
+    })
   });
 
   if (!res.ok) {
@@ -228,7 +229,7 @@ export const downloadProjectAsZip = async (
         title: project.title,
         parentId: project.parentId,
         downloadedAt: new Date().toISOString(),
-        filesCount: project.files.length,
+        filesCount: project.files.length
       },
       null,
       2
@@ -278,7 +279,10 @@ export interface ScriptFunctionInfo {
   lineNumber?: number;
 }
 
-export const extractFunctionsFromCode = (source: string, fileName: string = ''): ScriptFunctionInfo[] => {
+export const extractFunctionsFromCode = (
+  source: string,
+  fileName: string = ''
+): ScriptFunctionInfo[] => {
   if (!source) return [];
   const results: ScriptFunctionInfo[] = [];
   const seen = new Set<string>();
@@ -296,7 +300,7 @@ export const extractFunctionsFromCode = (source: string, fileName: string = ''):
     'class',
     'new',
     'typeof',
-    'instanceof',
+    'instanceof'
   ]);
 
   const lines = source.split('\n');
@@ -307,7 +311,9 @@ export const extractFunctionsFromCode = (source: string, fileName: string = ''):
     if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) continue;
 
     // 1. function name(...) or async function name(...) or export function name(...)
-    const funcMatch = line.match(/(?:export\s+)?(?:async\s+)?function(?:\s*\*|\s+)+([a-zA-Z0-9_$]+)\s*\(/);
+    const funcMatch = line.match(
+      /(?:export\s+)?(?:async\s+)?function(?:\s*\*|\s+)+([a-zA-Z0-9_$]+)\s*\(/
+    );
     if (funcMatch && funcMatch[1]) {
       const name = funcMatch[1];
       if (!seen.has(name) && !ignoreKeywords.has(name)) {
@@ -408,13 +414,13 @@ export const runAppsScriptFunction = async (
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           function: functionName,
           parameters,
-          devMode: true,
-        }),
+          devMode: true
+        })
       });
 
       if (res.ok) {
@@ -424,10 +430,13 @@ export const runAppsScriptFunction = async (
           const detail = data.error.details?.[0];
           return {
             status: 'error',
-            logs: detail?.scriptStackTraceElements?.map((s: any) => `at ${s.function} (${s.lineNumber})`) || [],
+            logs:
+              detail?.scriptStackTraceElements?.map(
+                (s: any) => `at ${s.function} (${s.lineNumber})`
+              ) || [],
             durationMs: duration,
             error: data.error.message || detail?.errorMessage || 'Script execution error',
-            source: 'cloud',
+            source: 'cloud'
           };
         }
         return {
@@ -435,7 +444,7 @@ export const runAppsScriptFunction = async (
           result: data.response?.result,
           logs: [`[Google Cloud API] Функция ${functionName} выполнена успешно`],
           durationMs: duration,
-          source: 'cloud',
+          source: 'cloud'
         };
       }
     } catch {
@@ -456,7 +465,7 @@ export const runAppsScriptFunction = async (
           .map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a)))
           .join(' ');
         capturedLogs.push(`[Logger.log] ${text}`);
-      },
+      }
     };
 
     const mockSpreadsheetApp = {
@@ -467,7 +476,7 @@ export const runAppsScriptFunction = async (
       getValues: () => [
         ['A', 'B', 'C'],
         [1, 'Тест', 100],
-        [2, 'Данные', 200],
+        [2, 'Данные', 200]
       ],
       appendRow: (row: any[]) => {
         capturedLogs.push(`[SpreadsheetApp.appendRow] ${JSON.stringify(row)}`);
@@ -476,41 +485,41 @@ export const runAppsScriptFunction = async (
         setValue: (val: any) => capturedLogs.push(`[Range.setValue] ${val}`),
         setValues: (vals: any) => capturedLogs.push(`[Range.setValues] ${JSON.stringify(vals)}`),
         getValue: () => 'Значение',
-        getValues: () => [['Значение']],
+        getValues: () => [['Значение']]
       }),
       getUi: () => ({
         alert: (msg: string) => capturedLogs.push(`[UI.alert] ${msg}`),
         createMenu: (name: string) => ({
           addItem: () => ({ addSeparator: () => ({ addToUi: () => {} }), addToUi: () => {} }),
           addSeparator: () => ({ addItem: () => ({ addToUi: () => {} }), addToUi: () => {} }),
-          addToUi: () => capturedLogs.push(`[UI.createMenu] Меню: "${name}"`),
-        }),
-      }),
+          addToUi: () => capturedLogs.push(`[UI.createMenu] Меню: "${name}"`)
+        })
+      })
     };
 
     const mockUtilities = {
       formatDate: (date: Date) => date.toLocaleString(),
       sleep: () => {},
       base64Encode: (str: string) => btoa(str),
-      base64Decode: (str: string) => atob(str),
+      base64Decode: (str: string) => atob(str)
     };
 
     const mockSession = {
       getActiveUser: () => ({ getEmail: () => 'user@gmail.com' }),
-      getEffectiveUser: () => ({ getEmail: () => 'user@gmail.com' }),
+      getEffectiveUser: () => ({ getEmail: () => 'user@gmail.com' })
     };
 
     const mockMailApp = {
       sendEmail: (opts: any) => {
         capturedLogs.push(`[MailApp.sendEmail] Кому: ${opts.to}, Тема: ${opts.subject}`);
-      },
+      }
     };
 
     const mockUrlFetchApp = {
-      fetch: (url: string) => ({
+      fetch: () => ({
         getResponseCode: () => 200,
-        getContentText: () => '{"status":"ok"}',
-      }),
+        getContentText: () => '{"status":"ok"}'
+      })
     };
 
     const runner = new Function(
@@ -542,9 +551,12 @@ export const runAppsScriptFunction = async (
     return {
       status: 'success',
       result: res !== undefined ? res : 'undefined (выполнено без return)',
-      logs: capturedLogs.length > 0 ? capturedLogs : [`Функция ${functionName}() выполнена без вызовов Logger.log`],
+      logs:
+        capturedLogs.length > 0
+          ? capturedLogs
+          : [`Функция ${functionName}() выполнена без вызовов Logger.log`],
       durationMs: duration,
-      source: 'local_runner',
+      source: 'local_runner'
     };
   } catch (err: any) {
     const duration = Date.now() - startTime;
@@ -553,7 +565,7 @@ export const runAppsScriptFunction = async (
       logs: capturedLogs,
       durationMs: duration,
       error: err.message || String(err),
-      source: 'local_runner',
+      source: 'local_runner'
     };
   }
 };

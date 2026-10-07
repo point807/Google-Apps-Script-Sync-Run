@@ -5,13 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
-import {
-  AppsScriptProject,
-  GitHubConfig,
-  ScriptFile,
-  SyncLogEntry,
-  SyncSettings
-} from './types';
+import { AppsScriptProject, GitHubConfig, ScriptFile, SyncLogEntry, SyncSettings } from './types';
 import { initAuth, googleSignIn, logout } from './services/firebaseAuth';
 import { SAMPLE_SHEETS_SCRIPTS } from './services/sampleScripts';
 import { syncCoordinator } from './services/syncManager';
@@ -32,7 +26,7 @@ const DEFAULT_SYNC_SETTINGS: SyncSettings = {
   backupToGitHub: true,
   backupFolderName: 'ScriptVault_Backups',
   backupSpreadsheetCopies: true,
-  selectedScriptIds: [],
+  selectedScriptIds: []
 };
 
 const DEFAULT_GITHUB_CONFIG: GitHubConfig = {
@@ -42,7 +36,7 @@ const DEFAULT_GITHUB_CONFIG: GitHubConfig = {
   branch: 'main',
   path: '',
   autoPush: true,
-  connected: false,
+  connected: false
 };
 
 export default function App() {
@@ -111,7 +105,9 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [countdown, setCountdown] = useState<number>(30);
-  const [activeScriptsCount, setActiveScriptsCount] = useState<number>(allProjects.length);
+  const [activeScriptsCount, setActiveScriptsCount] = useState<number>(
+    () => syncSettings.selectedScriptIds?.length || allProjects.length
+  );
 
   const addLog = (
     message: string,
@@ -125,7 +121,7 @@ export default function App() {
       type,
       category,
       message,
-      details,
+      details
     };
     setLogs((prev) => [entry, ...prev.slice(0, 200)]);
   };
@@ -136,11 +132,7 @@ export default function App() {
       (authUser, token) => {
         setUser(authUser);
         setAccessToken(token);
-        addLog(
-          `Вход в Google выполнен: ${authUser.email}`,
-          'success',
-          'drive'
-        );
+        addLog(`Вход в Google выполнен: ${authUser.email}`, 'success', 'drive');
       },
       () => {
         setUser(null);
@@ -197,12 +189,7 @@ export default function App() {
   // 3. Start or update auto-sync watcher with multi-script support
   useEffect(() => {
     if (syncSettings.autoSyncEnabled) {
-      syncCoordinator.startAutoSync(
-        allProjects,
-        accessToken,
-        syncSettings,
-        gitHubConfig
-      );
+      syncCoordinator.startAutoSync(allProjects, accessToken, syncSettings, gitHubConfig);
     } else {
       syncCoordinator.stopAutoSync();
     }
@@ -221,7 +208,7 @@ export default function App() {
     syncSettings.backupFolderName,
     syncSettings.selectedScriptIds,
     gitHubConfig.connected,
-    gitHubConfig.autoPush,
+    gitHubConfig.autoPush
   ]);
 
   // Persist all projects
@@ -246,6 +233,7 @@ export default function App() {
   // Persist settings
   const handleUpdateSettings = (newSettings: SyncSettings) => {
     setSyncSettings(newSettings);
+    setActiveScriptsCount(newSettings.selectedScriptIds?.length || allProjects.length);
     try {
       localStorage.setItem('scriptvault_sync_settings', JSON.stringify(newSettings));
     } catch (e) {
@@ -270,11 +258,7 @@ export default function App() {
       if (res) {
         setUser(res.user);
         setAccessToken(res.accessToken);
-        addLog(
-          `Вход через Google успешен (${res.user.email})`,
-          'success',
-          'drive'
-        );
+        addLog(`Вход через Google успешен (${res.user.email})`, 'success', 'drive');
       }
     } catch (err: any) {
       addLog(`Ошибка авторизации Google: ${err.message}`, 'error', 'drive');
@@ -292,13 +276,7 @@ export default function App() {
 
   const handleManualSync = async () => {
     setIsSyncing(true);
-    await syncCoordinator.runMultiSync(
-      allProjects,
-      accessToken,
-      syncSettings,
-      gitHubConfig,
-      true
-    );
+    await syncCoordinator.runMultiSync(allProjects, accessToken, syncSettings, gitHubConfig, true);
     setIsSyncing(false);
   };
 
@@ -311,14 +289,12 @@ export default function App() {
     const updated: AppsScriptProject = {
       ...currentProject,
       files,
-      lastModified: new Date().toISOString(),
+      lastModified: new Date().toISOString()
     };
     setCurrentProject(updated);
 
     // Update in allProjects list
-    setAllProjects((prev) =>
-      prev.map((p) => (p.scriptId === updated.scriptId ? updated : p))
-    );
+    setAllProjects((prev) => prev.map((p) => (p.scriptId === updated.scriptId ? updated : p)));
 
     // Create a new restore commit in git
     createCommit(
@@ -367,10 +343,13 @@ export default function App() {
     });
 
     // Add to selectedScriptIds for sync if not included
-    if (syncSettings.selectedScriptIds && !syncSettings.selectedScriptIds.includes(project.scriptId)) {
+    if (
+      syncSettings.selectedScriptIds &&
+      !syncSettings.selectedScriptIds.includes(project.scriptId)
+    ) {
       handleUpdateSettings({
         ...syncSettings,
-        selectedScriptIds: [...syncSettings.selectedScriptIds, project.scriptId],
+        selectedScriptIds: [...syncSettings.selectedScriptIds, project.scriptId]
       });
     }
 
@@ -395,13 +374,10 @@ export default function App() {
         onLogout={handleLogout}
         isLoggingIn={isLoggingIn}
         gitHubConnected={gitHubConfig.connected}
-        gitHubUsername={gitHubConfig.owner}
         isSyncing={isSyncing}
         countdown={countdown}
         lastSyncedAt={lastSyncedAt}
-        activeScriptsCount={
-          syncSettings.selectedScriptIds?.length || allProjects.length
-        }
+        activeScriptsCount={activeScriptsCount}
         onManualSync={handleManualSync}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -485,11 +461,7 @@ export default function App() {
         )}
 
         {activeTab === 'logs' && (
-          <ActivityLog
-            logs={logs}
-            onClearLogs={() => setLogs([])}
-            lang={lang}
-          />
+          <ActivityLog logs={logs} onClearLogs={() => setLogs([])} lang={lang} />
         )}
       </main>
 

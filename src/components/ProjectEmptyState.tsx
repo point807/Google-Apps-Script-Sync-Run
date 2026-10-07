@@ -14,7 +14,7 @@ interface ProjectEmptyStateProps {
 export const ProjectEmptyState: React.FC<ProjectEmptyStateProps> = ({
   lang,
   onLoadDemo,
-  onGoConnect,
+  onGoConnect
 }) => {
   const t = {
     ru: {
@@ -22,15 +22,15 @@ export const ProjectEmptyState: React.FC<ProjectEmptyStateProps> = ({
       description:
         'Подключите Google Apps Script проект по ID или URL, выберите скрипт из Google Drive или загрузите демо-проекты, чтобы посмотреть, как работает приложение.',
       connect: 'Подключить проект',
-      demo: 'Загрузить демо',
+      demo: 'Загрузить демо'
     },
     en: {
       title: 'No project connected yet',
       description:
         'Connect a Google Apps Script project by ID or URL, pick a script from Google Drive, or load the demo projects to see how the app works.',
       connect: 'Connect a project',
-      demo: 'Load demo',
-    },
+      demo: 'Load demo'
+    }
   }[lang];
 
   return (

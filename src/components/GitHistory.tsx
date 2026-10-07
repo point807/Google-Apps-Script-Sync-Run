@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   GitBranch,
   GitCommit as GitCommitIcon,
@@ -9,24 +9,16 @@ import {
   User,
   Github,
   Cloud,
-  ArrowRight,
   Copy,
   Check,
   Code2,
   FileSpreadsheet,
   AlertTriangle,
-  UploadCloud,
   FileText
 } from 'lucide-react';
 import { AppsScriptProject, GitCommit, ScriptFile } from '../types';
-import {
-  loadCommits,
-  computeProjectDiff,
-  ProjectDiff,
-  revertToCommit
-} from '../services/gitService';
+import { loadCommits, computeProjectDiff, ProjectDiff } from '../services/gitService';
 import { downloadProjectAsZip, updateAppsScriptProject } from '../services/appsScriptService';
-import { ConfirmationModal } from './ConfirmationModal';
 
 interface GitHistoryProps {
   allProjects: AppsScriptProject[];
@@ -45,14 +37,13 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
   onRestoreVersion,
   accessToken,
   lang,
-  onLog,
+  onLog
 }) => {
   // Script selector
   const [selectedScriptId, setSelectedScriptId] = useState(
     currentProject?.scriptId ?? allProjects[0]?.scriptId ?? ''
   );
-  const activeScript =
-    allProjects.find((p) => p.scriptId === selectedScriptId) ?? currentProject;
+  const activeScript = allProjects.find((p) => p.scriptId === selectedScriptId) ?? currentProject;
 
   const [commits, setCommits] = useState<GitCommit[]>([]);
   const [selectedCommit, setSelectedCommit] = useState<GitCommit | null>(null);
@@ -70,11 +61,13 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
   const t = {
     ru: {
       title: 'Система контроля версий Git',
-      subtitle: 'Просмотр истории коммитов для каждого скрипта, автора, даты, сообщений и функции отката',
+      subtitle:
+        'Просмотр истории коммитов для каждого скрипта, автора, даты, сообщений и функции отката',
       scriptSelectorLabel: 'Выберите скрипт для просмотра истории:',
       branch: 'Ветка:',
       noCommits: 'Для выбранного скрипта пока нет истории коммитов.',
-      noCommitsDesc: 'Коммиты формируются автоматически при авто-синхронизации или при ручной фиксации изменений.',
+      noCommitsDesc:
+        'Коммиты формируются автоматически при авто-синхронизации или при ручной фиксации изменений.',
       filesChanged: 'файлов изменено',
       additions: 'добавлено',
       deletions: 'удалено',
@@ -87,7 +80,8 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
       rollbackDesc: (commitId: string, msg: string) =>
         `Вы собираетесь вернуть проект к коммиту ${commitId} ("${msg}"). Текущие файлы рабочего пространства будут заменены состоянием из этого коммита.`,
       deployCheckbox: 'Также немедленно развернуть (перезаписать) в Google Apps Script',
-      deployNotice: 'Внимание: перезапись кода в Google Apps Script обновит скрипт на серверах Google!',
+      deployNotice:
+        'Внимание: перезапись кода в Google Apps Script обновит скрипт на серверах Google!',
       confirmRollbackAction: 'Подтвердить откат',
       cancel: 'Отмена',
       diffModalTitle: 'Сравнение изменений с предыдущей версией',
@@ -97,15 +91,17 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
       messageLabel: 'Сообщение:',
       shaLabel: 'SHA:',
       headBadge: 'HEAD (Текущая версия)',
-      filesInCommit: 'Файлы в этом коммите:',
+      filesInCommit: 'Файлы в этом коммите:'
     },
     en: {
       title: 'Git Version Control System',
-      subtitle: 'Inspect commit history per script including author, timestamp, message, and rollback',
+      subtitle:
+        'Inspect commit history per script including author, timestamp, message, and rollback',
       scriptSelectorLabel: 'Select script to view commit history:',
       branch: 'Branch:',
       noCommits: 'No commits found for the selected script yet.',
-      noCommitsDesc: 'Commits are recorded automatically during auto-sync or when creating manual snapshots.',
+      noCommitsDesc:
+        'Commits are recorded automatically during auto-sync or when creating manual snapshots.',
       filesChanged: 'files changed',
       additions: 'additions',
       deletions: 'deletions',
@@ -118,7 +114,8 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
       rollbackDesc: (commitId: string, msg: string) =>
         `You are about to revert the project back to commit ${commitId} ("${msg}"). Workspace files will be overwritten with this snapshot.`,
       deployCheckbox: 'Also immediately deploy (overwrite) to Google Apps Script remotely',
-      deployNotice: 'Caution: overwriting code in Google Apps Script updates code directly on Google servers!',
+      deployNotice:
+        'Caution: overwriting code in Google Apps Script updates code directly on Google servers!',
       confirmRollbackAction: 'Confirm Rollback',
       cancel: 'Cancel',
       diffModalTitle: 'Changes Diff against parent commit',
@@ -128,8 +125,8 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
       messageLabel: 'Message:',
       shaLabel: 'SHA:',
       headBadge: 'HEAD (Current Version)',
-      filesInCommit: 'Files in this commit:',
-    },
+      filesInCommit: 'Files in this commit:'
+    }
   }[lang];
 
   // Refresh commits when active script changes
@@ -179,7 +176,10 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
 
       // 2. If requested, deploy directly to live Google Apps Script
       if (deployRemotelyOnRollback && accessToken && !activeScript.scriptId.startsWith('1DEMO_')) {
-        onLog(`Развертывание восстановленной версии в Google Apps Script (${activeScript.scriptId})...`, 'info');
+        onLog(
+          `Развертывание восстановленной версии в Google Apps Script (${activeScript.scriptId})...`,
+          'info'
+        );
         await updateAppsScriptProject(activeScript.scriptId, commitToRollback.files, accessToken);
         onLog(`Код успешно обновлен на серверах Google Apps Script!`, 'success');
       }
@@ -195,8 +195,12 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
     }
   };
 
-  const formatRelativeTime = (timestamp: number) => {
-    const diffSeconds = Math.floor((Date.now() - timestamp) / 1000);
+  // Display-only timestamp: refreshed whenever the commit list changes
+  // eslint-disable-next-line react-hooks/purity -- relative-time label is render-time cosmetics
+  const now = useMemo(() => Date.now(), [commits]);
+
+  const formatRelativeTime = (timestamp: number, nowMs: number) => {
+    const diffSeconds = Math.floor((nowMs - timestamp) / 1000);
     if (diffSeconds < 60) return `${diffSeconds} сек. назад`;
     const diffMinutes = Math.floor(diffSeconds / 60);
     if (diffMinutes < 60) return `${diffMinutes} мин. назад`;
@@ -357,11 +361,14 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
                       <b>{commit.author}</b>
                     </span>
                     <span className="text-slate-600">•</span>
-                    <span className="flex items-center gap-1.5" title={new Date(commit.timestamp).toISOString()}>
+                    <span
+                      className="flex items-center gap-1.5"
+                      title={new Date(commit.timestamp).toISOString()}
+                    >
                       <Calendar className="w-3.5 h-3.5 text-slate-500" />
                       <span>{new Date(commit.timestamp).toLocaleString()}</span>
                       <span className="text-[11px] text-slate-500">
-                        ({formatRelativeTime(commit.timestamp)})
+                        ({formatRelativeTime(commit.timestamp, now)})
                       </span>
                     </span>
                   </div>
@@ -439,7 +446,7 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
                           {
                             ...activeScript,
                             files: commit.files,
-                            title: `${activeScript.title}_commit_${commit.id}`,
+                            title: `${activeScript.title}_commit_${commit.id}`
                           },
                           `${activeScript.title}_commit_${commit.id}.zip`
                         );
@@ -525,14 +532,16 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
                             line.type === 'add'
                               ? 'bg-emerald-950/40 text-emerald-300 border-l-2 border-emerald-500'
                               : line.type === 'del'
-                              ? 'bg-red-950/40 text-red-300 border-l-2 border-red-500'
-                              : 'text-slate-400'
+                                ? 'bg-red-950/40 text-red-300 border-l-2 border-red-500'
+                                : 'text-slate-400'
                           }`}
                         >
                           <span className="w-8 shrink-0 select-none text-slate-600 text-right pr-2">
                             {line.type === 'add' ? '+' : line.type === 'del' ? '-' : ' '}
                           </span>
-                          <span className="whitespace-pre-wrap break-all flex-1">{line.content}</span>
+                          <span className="whitespace-pre-wrap break-all flex-1">
+                            {line.content}
+                          </span>
                         </div>
                       ))
                     )}
@@ -591,9 +600,7 @@ export const GitHistory: React.FC<GitHistoryProps> = ({
                   onChange={(e) => setDeployRemotelyOnRollback(e.target.checked)}
                   className="mt-0.5 rounded bg-slate-900 border-indigo-500 text-indigo-600 focus:ring-0"
                 />
-                <span className="text-xs font-semibold text-slate-200">
-                  {t.deployCheckbox}
-                </span>
+                <span className="text-xs font-semibold text-slate-200">{t.deployCheckbox}</span>
               </label>
               {deployRemotelyOnRollback && (
                 <div className="text-[11px] text-amber-400 flex items-start gap-1.5 pl-6">

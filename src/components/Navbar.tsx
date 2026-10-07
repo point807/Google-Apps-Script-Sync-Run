@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Github, Database, ShieldCheck, LogOut, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, Github, Database, LogOut, CheckCircle2 } from 'lucide-react';
 import { User } from 'firebase/auth';
 
 interface NavbarProps {
@@ -9,7 +9,6 @@ interface NavbarProps {
   onLogout: () => void;
   isLoggingIn: boolean;
   gitHubConnected: boolean;
-  gitHubUsername?: string;
   isSyncing: boolean;
   countdown: number;
   lastSyncedAt: Date | null;
@@ -28,7 +27,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
   isLoggingIn,
   gitHubConnected,
-  gitHubUsername,
   isSyncing,
   countdown,
   lastSyncedAt,
@@ -37,7 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
   lang,
-  setLang,
+  setLang
 }) => {
   const t = {
     ru: {
@@ -49,7 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         git: 'История Git',
         github: 'GitHub',
         drive: 'Настройки и Диск',
-        logs: 'Журнал событий',
+        logs: 'Журнал событий'
       },
       signIn: 'Войти через Google',
       signingIn: 'Вход...',
@@ -58,7 +56,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       syncing: 'Синхронизация...',
       justNow: 'только что',
       connectedDrive: 'Диск подключен',
-      connectedGH: 'GitHub активен',
+      connectedGH: 'GitHub активен'
     },
     en: {
       appName: 'ScriptVault',
@@ -69,7 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         git: 'Git History',
         github: 'GitHub',
         drive: 'Sync & Drive',
-        logs: 'Event Log',
+        logs: 'Event Log'
       },
       signIn: 'Sign in with Google',
       signingIn: 'Signing in...',
@@ -78,8 +76,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       syncing: 'Syncing...',
       justNow: 'just now',
       connectedDrive: 'Drive Connected',
-      connectedGH: 'GitHub Active',
-    },
+      connectedGH: 'GitHub Active'
+    }
   }[lang];
 
   return (
@@ -189,6 +187,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="text-slate-300 font-mono text-[11px]">
                 {isSyncing ? t.syncing : `${t.liveWatcher} ${countdown}s`}
               </span>
+              {lastSyncedAt && (
+                <span
+                  title={lastSyncedAt.toLocaleString()}
+                  className="text-slate-500 font-mono text-[10px]"
+                >
+                  {lang === 'ru' ? 'обн.' : 'upd.'} {lastSyncedAt.toLocaleTimeString()}
+                </span>
+              )}
               {activeScriptsCount !== undefined && activeScriptsCount > 0 && (
                 <span
                   title="Количество отслеживаемых скриптов"
@@ -203,7 +209,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 title={t.syncNow}
                 className="p-1 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-md transition cursor-pointer"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-indigo-400' : ''}`} />
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-indigo-400' : ''}`}
+                />
               </button>
             </div>
 

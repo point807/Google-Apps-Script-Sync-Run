@@ -13,7 +13,7 @@ const firebaseConfig = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 const missingVars = Object.entries(firebaseConfig)
@@ -37,7 +37,7 @@ export const SCOPES = [
   'https://www.googleapis.com/auth/drive',
   'https://www.googleapis.com/auth/drive.scripts',
   'https://www.googleapis.com/auth/spreadsheets',
-  'https://www.googleapis.com/auth/script.projects',
+  'https://www.googleapis.com/auth/script.projects'
 ];
 
 const provider = new GoogleAuthProvider();

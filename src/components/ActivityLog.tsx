@@ -3,13 +3,11 @@ import {
   Terminal,
   Trash2,
   Download,
-  Filter,
   CheckCircle2,
   AlertTriangle,
   XCircle,
   Info,
-  Clock,
-  Layers
+  Clock
 } from 'lucide-react';
 import { SyncLogEntry } from '../types';
 
@@ -29,16 +27,17 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({ logs, onClearLogs, lan
       clear: 'Очистить журнал',
       export: 'Экспорт журнала',
       noLogs: 'Записей в журнале пока нет. Они будут появляться по мере работы системы.',
-      all: 'Все категории',
+      all: 'Все категории'
     },
     en: {
       title: 'Live Activity & Sync Log',
-      subtitle: 'Full audit log of Drive snapshots, Git commits, GitHub pushes, and real-time watcher events',
+      subtitle:
+        'Full audit log of Drive snapshots, Git commits, GitHub pushes, and real-time watcher events',
       clear: 'Clear Log',
       export: 'Export Log',
       noLogs: 'No log entries recorded yet.',
-      all: 'All Categories',
-    },
+      all: 'All Categories'
+    }
   }[lang];
 
   const filteredLogs = logs.filter(

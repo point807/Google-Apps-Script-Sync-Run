@@ -18,7 +18,7 @@ export const listGoogleDriveFolders = async (
   url.searchParams.append('orderBy', 'name asc');
 
   const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}` }
   });
 
   if (!res.ok) {
@@ -30,7 +30,7 @@ export const listGoogleDriveFolders = async (
     id: f.id,
     name: f.name,
     createdTime: f.createdTime,
-    modifiedTime: f.modifiedTime,
+    modifiedTime: f.modifiedTime
   }));
 };
 
@@ -42,7 +42,7 @@ export const createCustomDriveFolder = async (
   const body: any = {
     name: folderName,
     mimeType: 'application/vnd.google-apps.folder',
-    description: 'Apps Script backup folder managed by ScriptVault',
+    description: 'Apps Script backup folder managed by ScriptVault'
   };
   if (parentFolderId) {
     body.parents = [parentFolderId];
@@ -52,9 +52,9 @@ export const createCustomDriveFolder = async (
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json'
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(body)
   });
 
   if (!res.ok) {
@@ -64,7 +64,7 @@ export const createCustomDriveFolder = async (
   const created = await res.json();
   return {
     id: created.id,
-    name: created.name,
+    name: created.name
   };
 };
 
@@ -80,18 +80,22 @@ export const listGoogleSpreadsheets = async (
   const url = new URL(`${DRIVE_API_BASE}/files`);
   url.searchParams.append('q', query);
   url.searchParams.append('pageSize', '30');
-  url.searchParams.append('fields', 'files(id, name, mimeType, modifiedTime, iconLink, webViewLink, owners)');
+  url.searchParams.append(
+    'fields',
+    'files(id, name, mimeType, modifiedTime, iconLink, webViewLink, owners)'
+  );
   url.searchParams.append('orderBy', 'modifiedTime desc');
 
   let res: Response;
   try {
     res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}` }
     });
   } catch (netErr: any) {
     throw new Error(
       `Сетевая ошибка при загрузке таблиц с Google Диска (${netErr.message || 'Failed to fetch'}).\n` +
-      `Если у вас активен AdBlock или Brave Shield, разрешите запросы к *.googleapis.com, либо обновите вход через Google.`
+        `Если у вас активен AdBlock или Brave Shield, разрешите запросы к *.googleapis.com, либо обновите вход через Google.`,
+      { cause: netErr }
     );
   }
 
@@ -116,18 +120,22 @@ export const listGoogleScripts = async (
   const url = new URL(`${DRIVE_API_BASE}/files`);
   url.searchParams.append('q', query);
   url.searchParams.append('pageSize', '30');
-  url.searchParams.append('fields', 'files(id, name, mimeType, modifiedTime, iconLink, webViewLink, owners)');
+  url.searchParams.append(
+    'fields',
+    'files(id, name, mimeType, modifiedTime, iconLink, webViewLink, owners)'
+  );
   url.searchParams.append('orderBy', 'modifiedTime desc');
 
   let res: Response;
   try {
     res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}` }
     });
   } catch (netErr: any) {
     throw new Error(
       `Сетевая ошибка при загрузке скриптов с Google Диска (${netErr.message || 'Failed to fetch'}).\n` +
-      `Проверьте подключение к сети или обновите вход через Google.`
+        `Проверьте подключение к сети или обновите вход через Google.`,
+      { cause: netErr }
     );
   }
 
@@ -151,7 +159,7 @@ export const getOrCreateBackupFolder = async (
   url.searchParams.append('fields', 'files(id, name)');
 
   const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}` }
   });
 
   if (res.ok) {
@@ -166,13 +174,13 @@ export const getOrCreateBackupFolder = async (
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
       name: folderName,
       mimeType: 'application/vnd.google-apps.folder',
-      description: 'Automated Apps Script and Spreadsheet backups managed by ScriptVault',
-    }),
+      description: 'Automated Apps Script and Spreadsheet backups managed by ScriptVault'
+    })
   });
 
   if (!createRes.ok) {
@@ -194,7 +202,7 @@ export const saveSnapshotToDrive = async (
   const metadata = {
     name: fileName,
     parents: [folderId],
-    description: description || 'ScriptVault Auto-Backup Snapshot',
+    description: description || 'ScriptVault Auto-Backup Snapshot'
   };
 
   const boundary = '-------314159265358979323846';
@@ -214,9 +222,9 @@ export const saveSnapshotToDrive = async (
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'Content-Type': `multipart/related; boundary=${boundary}`,
+      'Content-Type': `multipart/related; boundary=${boundary}`
     },
-    body: multipartRequestBody,
+    body: multipartRequestBody
   });
 
   if (!res.ok) {
@@ -235,7 +243,7 @@ export const copySpreadsheetBackup = async (
   destinationFolderId?: string
 ): Promise<string> => {
   const body: any = {
-    name: backupName,
+    name: backupName
   };
   if (destinationFolderId) {
     body.parents = [destinationFolderId];
@@ -245,9 +253,9 @@ export const copySpreadsheetBackup = async (
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json'
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(body)
   });
 
   if (!res.ok) {
@@ -270,7 +278,7 @@ export const listDriveSnapshots = async (
   url.searchParams.append('pageSize', '50');
 
   const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}` }
   });
 
   if (!res.ok) return [];
@@ -282,7 +290,7 @@ export const listDriveSnapshots = async (
     createdTime: f.createdTime,
     scriptId: '',
     scriptTitle: f.name.replace(/\.json$/, ''),
-    sizeBytes: f.size ? Number(f.size) : undefined,
+    sizeBytes: f.size ? Number(f.size) : undefined
   }));
 
   return snapshots;
@@ -293,7 +301,7 @@ export const downloadDriveFileContent = async (
   fileId: string
 ): Promise<string> => {
   const res = await fetch(`${DRIVE_API_BASE}/files/${fileId}?alt=media`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}` }
   });
 
   if (!res.ok) {

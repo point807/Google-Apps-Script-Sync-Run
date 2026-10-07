@@ -45,7 +45,7 @@ export class SyncCoordinator {
         type,
         category,
         message,
-        details,
+        details
       });
     }
   }
@@ -78,7 +78,7 @@ export class SyncCoordinator {
           isSyncing: this.isRunning,
           lastSyncedAt: null,
           countdown: this.secondsRemaining,
-          activeScriptsCount: targetProjects.length,
+          activeScriptsCount: targetProjects.length
         });
       }
     }, 1000);
@@ -111,7 +111,11 @@ export class SyncCoordinator {
         : projects;
 
     if (targetProjects.length === 0) {
-      this.log('warning', 'realtime', 'Нет выбранных скриптов для синхронизации. Проверьте настройки.');
+      this.log(
+        'warning',
+        'realtime',
+        'Нет выбранных скриптов для синхронизации. Проверьте настройки.'
+      );
       this.isRunning = false;
       return;
     }
@@ -134,7 +138,11 @@ export class SyncCoordinator {
             settings.backupFolderName || 'ScriptVault_Backups'
           );
         } catch (e: any) {
-          this.log('error', 'drive', `Не удалось инициализировать папку на Google Диске: ${e.message}`);
+          this.log(
+            'error',
+            'drive',
+            `Не удалось инициализировать папку на Google Диске: ${e.message}`
+          );
         }
       }
 
@@ -155,7 +163,7 @@ export class SyncCoordinator {
           isSyncing: false,
           lastSyncedAt: new Date(),
           countdown: this.secondsRemaining,
-          activeScriptsCount: targetProjects.length,
+          activeScriptsCount: targetProjects.length
         });
       }
     }
@@ -179,7 +187,7 @@ export class SyncCoordinator {
           ...fresh,
           parentTitle: project.parentTitle,
           lastSyncTime: new Date().toISOString(),
-          lastSyncStatus: 'success',
+          lastSyncStatus: 'success'
         };
         if (this.onProjectUpdatedCallback) {
           this.onProjectUpdatedCallback(liveProject);
@@ -197,7 +205,9 @@ export class SyncCoordinator {
     const commit = createCommit(
       liveProject.scriptId,
       liveProject.files,
-      isManual ? `Manual snapshot of ${liveProject.title}` : `Auto-backup snapshot: ${liveProject.title}`,
+      isManual
+        ? `Manual snapshot of ${liveProject.title}`
+        : `Auto-backup snapshot: ${liveProject.title}`,
       'ScriptVault AutoSync',
       'main',
       { force: isManual }
@@ -221,10 +231,10 @@ export class SyncCoordinator {
             parentId: liveProject.parentId,
             commitId: commit.id,
             timestamp: new Date().toISOString(),
-            files: liveProject.files,
+            files: liveProject.files
           };
 
-          const fileId = await saveSnapshotToDrive(
+          await saveSnapshotToDrive(
             accessToken,
             targetFolderId,
             fileName,

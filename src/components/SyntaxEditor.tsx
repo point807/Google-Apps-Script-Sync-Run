@@ -19,12 +19,12 @@ const CodeEditorComponent: any =
   (Editor as any)?.default?.render || (Editor as any)?.default?.$$typeof
     ? (Editor as any).default
     : typeof Editor === 'function' || (Editor as any)?.$$typeof
-    ? Editor
-    : (Editor as any)?.default || Editor;
+      ? Editor
+      : (Editor as any)?.default || Editor;
 
 // Custom syntax extension for Google Apps Script services in PrismJS
 if (Prism && Prism.languages && Prism.languages.javascript) {
-  // @ts-ignore
+  // @ts-expect-error PrismJS allows custom language extensions
   Prism.languages.javascript['appsscript-global'] =
     /\b(SpreadsheetApp|DriveApp|DocumentApp|SlidesApp|FormApp|GmailApp|CalendarApp|MailApp|UrlFetchApp|Utilities|Session|PropertiesService|ScriptApp|HtmlService|LanguageApp|Maps|BigQuery|LockService|CacheService|XmlService|ContentService|Logger)\b/;
 }
@@ -39,7 +39,7 @@ interface SyntaxEditorProps {
   lang: 'ru' | 'en';
 }
 
-export const SyntaxEditor: React.FC<SyntaxEditorProps> = ({ file, onChange, lang }) => {
+export const SyntaxEditor: React.FC<SyntaxEditorProps> = ({ file, onChange, lang: _lang }) => {
   const [fontSize, setFontSize] = useState<number>(13);
   const [wordWrap, setWordWrap] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -58,8 +58,7 @@ export const SyntaxEditor: React.FC<SyntaxEditorProps> = ({ file, onChange, lang
 
   // Live syntax highlight using PrismJS
   const highlightCode = (code: string) => {
-    const langMode =
-      file.type === 'JSON' ? 'json' : file.type === 'HTML' ? 'markup' : 'javascript';
+    const langMode = file.type === 'JSON' ? 'json' : file.type === 'HTML' ? 'markup' : 'javascript';
     const grammar = Prism.languages[langMode] || Prism.languages.javascript;
     return Prism.highlight(code, grammar, langMode);
   };
@@ -258,7 +257,11 @@ export const SyntaxEditor: React.FC<SyntaxEditorProps> = ({ file, onChange, lang
             title="Скопировать весь код"
             className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg border border-slate-700 transition cursor-pointer"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? (
+              <Check className="w-3.5 h-3.5 text-emerald-400" />
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
           </button>
 
           {/* Fullscreen Toggle */}
@@ -268,7 +271,11 @@ export const SyntaxEditor: React.FC<SyntaxEditorProps> = ({ file, onChange, lang
             title={isFullscreen ? 'Выйти из полноэкранного режима' : 'На весь экран'}
             className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg border border-slate-700 transition cursor-pointer"
           >
-            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            {isFullscreen ? (
+              <Minimize2 className="w-3.5 h-3.5" />
+            ) : (
+              <Maximize2 className="w-3.5 h-3.5" />
+            )}
           </button>
         </div>
       </div>
@@ -336,7 +343,7 @@ export const SyntaxEditor: React.FC<SyntaxEditorProps> = ({ file, onChange, lang
             fontSize: `${fontSize}px`,
             lineHeight: '1.6rem',
             paddingTop: '16px',
-            paddingBottom: '16px',
+            paddingBottom: '16px'
           }}
           className="w-12 sm:w-14 shrink-0 text-right pr-3 select-none text-slate-600 border-r border-slate-800/80 bg-slate-950 sticky left-0 z-10 font-mono"
         >
@@ -363,7 +370,7 @@ export const SyntaxEditor: React.FC<SyntaxEditorProps> = ({ file, onChange, lang
               lineHeight: '1.6rem',
               minHeight: '100%',
               whiteSpace: wordWrap ? 'pre-wrap' : 'pre',
-              wordBreak: wordWrap ? 'break-word' : 'normal',
+              wordBreak: wordWrap ? 'break-word' : 'normal'
             }}
             textareaClassName="focus:outline-none"
             className="prism-editor-container font-mono text-slate-100 selection:bg-indigo-600/40"
@@ -391,8 +398,8 @@ export const SyntaxEditor: React.FC<SyntaxEditorProps> = ({ file, onChange, lang
             {file.type === 'JSON'
               ? 'JSON'
               : file.type === 'HTML'
-              ? 'HTML'
-              : 'Google Apps Script (JS)'}
+                ? 'HTML'
+                : 'Google Apps Script (JS)'}
           </span>
         </div>
       </div>

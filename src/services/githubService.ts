@@ -33,7 +33,7 @@ export const listBranches = async (
 ): Promise<GitHubBranch[]> => {
   const headers = getHeaders(token);
   const res = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/branches?per_page=100`, {
-    headers,
+    headers
   });
 
   if (!res.ok) {
@@ -55,7 +55,7 @@ export const createBranch = async (
 
   // 1. Get base branch commit SHA
   const refRes = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/ref/heads/${fromBranch}`, {
-    headers,
+    headers
   });
 
   if (!refRes.ok) {
@@ -71,8 +71,8 @@ export const createBranch = async (
     headers,
     body: JSON.stringify({
       ref: `refs/heads/${cleanName}`,
-      sha: baseSha,
-    }),
+      sha: baseSha
+    })
   });
 
   if (!createRes.ok) {
@@ -91,7 +91,7 @@ export const deleteBranch = async (
   const cleanName = branchName.trim().replace(/^refs\/heads\//, '');
   const res = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/refs/heads/${cleanName}`, {
     method: 'DELETE',
-    headers,
+    headers
   });
 
   if (!res.ok) {
@@ -116,14 +116,14 @@ export const compareBranches = async (
   try {
     const headers = getHeaders(token);
     const res = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/compare/${base}...${head}`, {
-      headers,
+      headers
     });
     if (!res.ok) return null;
     const data = await res.json();
     return {
       status: data.status || 'identical',
       aheadBy: data.ahead_by || 0,
-      behindBy: data.behind_by || 0,
+      behindBy: data.behind_by || 0
     };
   } catch {
     return null;
@@ -143,17 +143,19 @@ const GITHUB_API = 'https://api.github.com';
 const getHeaders = (token: string) => ({
   Accept: 'application/vnd.github.v3+json',
   Authorization: `Bearer ${token.trim()}`,
-  'Content-Type': 'application/json',
+  'Content-Type': 'application/json'
 });
 
 export const validateGitHubToken = async (token: string): Promise<GitHubUser> => {
   const res = await fetch(`${GITHUB_API}/user`, {
-    headers: getHeaders(token),
+    headers: getHeaders(token)
   });
 
   if (!res.ok) {
     if (res.status === 401) {
-      throw new Error('Invalid GitHub token. Please verify your Personal Access Token permissions.');
+      throw new Error(
+        'Invalid GitHub token. Please verify your Personal Access Token permissions.'
+      );
     }
     throw new Error(`GitHub verification failed: ${res.statusText}`);
   }
@@ -162,9 +164,12 @@ export const validateGitHubToken = async (token: string): Promise<GitHubUser> =>
 };
 
 export const listRepositories = async (token: string): Promise<GitHubRepo[]> => {
-  const res = await fetch(`${GITHUB_API}/user/repos?sort=updated&per_page=50&affiliation=owner,collaborator`, {
-    headers: getHeaders(token),
-  });
+  const res = await fetch(
+    `${GITHUB_API}/user/repos?sort=updated&per_page=50&affiliation=owner,collaborator`,
+    {
+      headers: getHeaders(token)
+    }
+  );
 
   if (!res.ok) {
     throw new Error(`Failed to list repositories: ${res.statusText}`);
@@ -186,8 +191,8 @@ export const createRepository = async (
       name,
       private: isPrivate,
       description,
-      auto_init: true, // creates README so default branch exists
-    }),
+      auto_init: true // creates README so default branch exists
+    })
   });
 
   if (!res.ok) {
@@ -212,7 +217,7 @@ export const pushFilesToGitHub = async (
 
   // 1. Get latest commit SHA on the branch
   let refRes = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/ref/heads/${branch}`, {
-    headers,
+    headers
   });
 
   // If branch doesn't exist, try getting default branch first to branch off
@@ -222,9 +227,12 @@ export const pushFilesToGitHub = async (
     const repoInfo = await repoInfoRes.json();
     const defaultBranch = repoInfo.default_branch || 'main';
 
-    const defaultRefRes = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/ref/heads/${defaultBranch}`, {
-      headers,
-    });
+    const defaultRefRes = await fetch(
+      `${GITHUB_API}/repos/${owner}/${repo}/git/ref/heads/${defaultBranch}`,
+      {
+        headers
+      }
+    );
 
     if (defaultRefRes.ok) {
       const defData = await defaultRefRes.json();
@@ -235,15 +243,19 @@ export const pushFilesToGitHub = async (
         headers,
         body: JSON.stringify({
           ref: `refs/heads/${branch}`,
-          sha: parentSha,
-        }),
+          sha: parentSha
+        })
       });
       if (!createBranchRes.ok) {
         throw new Error(`Failed to create branch ${branch}`);
       }
-      refRes = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/ref/heads/${branch}`, { headers });
+      refRes = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/ref/heads/${branch}`, {
+        headers
+      });
     } else {
-      throw new Error(`Branch ${branch} does not exist and repository has no initial commits. Please initialize the repository with a README.`);
+      throw new Error(
+        `Branch ${branch} does not exist and repository has no initial commits. Please initialize the repository with a README.`
+      );
     }
   }
 
@@ -251,9 +263,12 @@ export const pushFilesToGitHub = async (
   const latestCommitSha = refData.object.sha;
 
   // 2. Get tree of the latest commit
-  const commitRes = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/commits/${latestCommitSha}`, {
-    headers,
-  });
+  const commitRes = await fetch(
+    `${GITHUB_API}/repos/${owner}/${repo}/git/commits/${latestCommitSha}`,
+    {
+      headers
+    }
+  );
   if (!commitRes.ok) throw new Error('Failed to fetch commit object');
   const commitData = await commitRes.json();
   const baseTreeSha = commitData.tree.sha;
@@ -271,7 +286,7 @@ export const pushFilesToGitHub = async (
       path: filePath,
       mode: '100644',
       type: 'blob',
-      content: file.source,
+      content: file.source
     };
   });
 
@@ -280,8 +295,8 @@ export const pushFilesToGitHub = async (
     headers,
     body: JSON.stringify({
       base_tree: baseTreeSha,
-      tree: treeNodes,
-    }),
+      tree: treeNodes
+    })
   });
 
   if (!createTreeRes.ok) {
@@ -298,8 +313,8 @@ export const pushFilesToGitHub = async (
     body: JSON.stringify({
       message: commitMessage,
       tree: newTreeData.sha,
-      parents: [latestCommitSha],
-    }),
+      parents: [latestCommitSha]
+    })
   });
 
   if (!newCommitRes.ok) {
@@ -310,14 +325,17 @@ export const pushFilesToGitHub = async (
   const newCommit = await newCommitRes.json();
 
   // 5. Update branch reference
-  const updateRefRes = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
-    method: 'PATCH',
-    headers,
-    body: JSON.stringify({
-      sha: newCommit.sha,
-      force: false,
-    }),
-  });
+  const updateRefRes = await fetch(
+    `${GITHUB_API}/repos/${owner}/${repo}/git/refs/heads/${branch}`,
+    {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        sha: newCommit.sha,
+        force: false
+      })
+    }
+  );
 
   if (!updateRefRes.ok) {
     const err = await updateRefRes.text();
@@ -326,7 +344,7 @@ export const pushFilesToGitHub = async (
 
   return {
     commitSha: newCommit.sha,
-    commitUrl: `https://github.com/${owner}/${repo}/commit/${newCommit.sha}`,
+    commitUrl: `https://github.com/${owner}/${repo}/commit/${newCommit.sha}`
   };
 };
 
@@ -350,6 +368,6 @@ export const fetchRemoteCommits = async (
     message: c.commit.message,
     author: c.commit.author?.name || c.author?.login || 'Unknown',
     date: c.commit.author?.date || '',
-    html_url: c.html_url,
+    html_url: c.html_url
   }));
 };

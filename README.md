@@ -128,14 +128,14 @@ cp .env.example .env
 
 Переменные:
 
-| Переменная | Назначение |
-|---|---|
-| `VITE_FIREBASE_API_KEY` | API key веб-приложения Firebase |
-| `VITE_FIREBASE_AUTH_DOMAIN` | auth domain |
-| `VITE_FIREBASE_PROJECT_ID` | ID проекта Firebase |
-| `VITE_FIREBASE_STORAGE_BUCKET` | storage bucket |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | messaging sender ID |
-| `VITE_FIREBASE_APP_ID` | ID веб-приложения Firebase |
+| Переменная                          | Назначение                      |
+| ----------------------------------- | ------------------------------- |
+| `VITE_FIREBASE_API_KEY`             | API key веб-приложения Firebase |
+| `VITE_FIREBASE_AUTH_DOMAIN`         | auth domain                     |
+| `VITE_FIREBASE_PROJECT_ID`          | ID проекта Firebase             |
+| `VITE_FIREBASE_STORAGE_BUCKET`      | storage bucket                  |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | messaging sender ID             |
+| `VITE_FIREBASE_APP_ID`              | ID веб-приложения Firebase      |
 
 Без этих переменных приложение не запустится и покажет понятную ошибку.
 

@@ -33,7 +33,9 @@ export const generateCommitSha = (seed: string): string => {
     hash |= 0; // Convert to 32bit integer
   }
   const hex = Math.abs(hash).toString(16).padStart(8, '0');
-  const rand = Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
+  const rand = Math.floor(Math.random() * 0xffffff)
+    .toString(16)
+    .padStart(6, '0');
   return (hex + rand).slice(0, 10);
 };
 
@@ -52,7 +54,7 @@ export const computeLineDiff = (oldText: string, newText: string): DiffLine[] =>
         type: 'same',
         content: oldLines[i],
         oldLineNumber: i + 1,
-        newLineNumber: j + 1,
+        newLineNumber: j + 1
       });
       i++;
       j++;
@@ -80,7 +82,7 @@ export const computeLineDiff = (oldText: string, newText: string): DiffLine[] =>
           result.push({
             type: 'add',
             content: newLines[j],
-            newLineNumber: j + 1,
+            newLineNumber: j + 1
           });
           j++;
         }
@@ -90,7 +92,7 @@ export const computeLineDiff = (oldText: string, newText: string): DiffLine[] =>
           result.push({
             type: 'del',
             content: oldLines[i],
-            oldLineNumber: i + 1,
+            oldLineNumber: i + 1
           });
           i++;
         }
@@ -99,12 +101,12 @@ export const computeLineDiff = (oldText: string, newText: string): DiffLine[] =>
         result.push({
           type: 'del',
           content: oldLines[i],
-          oldLineNumber: i + 1,
+          oldLineNumber: i + 1
         });
         result.push({
           type: 'add',
           content: newLines[j],
-          newLineNumber: j + 1,
+          newLineNumber: j + 1
         });
         i++;
         j++;
@@ -116,7 +118,7 @@ export const computeLineDiff = (oldText: string, newText: string): DiffLine[] =>
     result.push({
       type: 'del',
       content: oldLines[i],
-      oldLineNumber: i + 1,
+      oldLineNumber: i + 1
     });
     i++;
   }
@@ -125,7 +127,7 @@ export const computeLineDiff = (oldText: string, newText: string): DiffLine[] =>
     result.push({
       type: 'add',
       content: newLines[j],
-      newLineNumber: j + 1,
+      newLineNumber: j + 1
     });
     j++;
   }
@@ -133,10 +135,7 @@ export const computeLineDiff = (oldText: string, newText: string): DiffLine[] =>
   return result;
 };
 
-export const computeProjectDiff = (
-  oldFiles: ScriptFile[],
-  newFiles: ScriptFile[]
-): ProjectDiff => {
+export const computeProjectDiff = (oldFiles: ScriptFile[], newFiles: ScriptFile[]): ProjectDiff => {
   const oldMap = new Map(oldFiles.map((f) => [f.name, f]));
   const newMap = new Map(newFiles.map((f) => [f.name, f]));
   const allNames = Array.from(new Set([...oldMap.keys(), ...newMap.keys()])).sort();
@@ -162,7 +161,7 @@ export const computeProjectDiff = (
         status: 'added',
         lines,
         additions,
-        deletions: 0,
+        deletions: 0
       });
     } else if (oldF && !newF) {
       // Deleted
@@ -176,7 +175,7 @@ export const computeProjectDiff = (
         status: 'deleted',
         lines,
         additions: 0,
-        deletions,
+        deletions
       });
     } else if (oldF && newF) {
       if (oldF.source !== newF.source) {
@@ -192,7 +191,7 @@ export const computeProjectDiff = (
           status: 'modified',
           lines,
           additions,
-          deletions,
+          deletions
         });
       } else {
         fileDiffs.push({
@@ -201,7 +200,7 @@ export const computeProjectDiff = (
           status: 'unchanged',
           lines: [],
           additions: 0,
-          deletions: 0,
+          deletions: 0
         });
       }
     }
@@ -212,7 +211,7 @@ export const computeProjectDiff = (
     totalAdditions,
     totalDeletions,
     filesChanged,
-    hasChanges: filesChanged > 0,
+    hasChanges: filesChanged > 0
   };
 };
 
@@ -279,16 +278,16 @@ export const createCommit = (
       ? {
           filesChanged: diffSummary.filesChanged,
           additions: diffSummary.totalAdditions,
-          deletions: diffSummary.totalDeletions,
+          deletions: diffSummary.totalDeletions
         }
       : {
           filesChanged: files.length,
           additions: files.reduce((acc, f) => acc + f.source.split('\n').length, 0),
-          deletions: 0,
+          deletions: 0
         },
     syncedToDrive: options.syncedToDrive || false,
     syncedToGitHub: options.syncedToGitHub || false,
-    gitHubCommitSha: options.gitHubCommitSha,
+    gitHubCommitSha: options.gitHubCommitSha
   };
 
   const updated = [newCommit, ...commits];
@@ -330,4 +329,3 @@ export const revertToCommit = (
   if (!revertCommit) return null;
   return { targetCommit, revertCommit };
 };
-

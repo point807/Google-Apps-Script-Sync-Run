@@ -5,21 +5,16 @@ import {
   FolderGit2,
   UploadCloud,
   CheckCircle2,
-  AlertCircle,
   ExternalLink,
   Plus,
   RefreshCw,
   GitBranch,
   Lock,
-  GitCommit as GitCommitIcon,
   HelpCircle,
   Clock,
   Trash2,
   Check,
   ArrowRight,
-  GitFork,
-  ShieldCheck,
-  AlertTriangle,
   Network,
   List,
   X
@@ -57,13 +52,13 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
   gitHubConfig,
   onUpdateConfig,
   lang,
-  onLog,
+  onLog
 }) => {
   const [tokenInput, setTokenInput] = useState(gitHubConfig.token || '');
   const [validating, setValidating] = useState(false);
   const [gitUser, setGitUser] = useState<GitHubUser | null>(null);
   const [repos, setRepos] = useState<GitHubRepo[]>([]);
-  const [loadingRepos, setLoadingRepos] = useState(false);
+  const [, setLoadingRepos] = useState(false);
   const [pushing, setPushing] = useState(false);
   const [remoteCommits, setRemoteCommits] = useState<RemoteCommitInfo[]>([]);
   const [loadingCommits, setLoadingCommits] = useState(false);
@@ -83,8 +78,8 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
           name: gitHubConfig.owner ? `@${gitHubConfig.owner}` : 'Активный ключ',
           token: gitHubConfig.token,
           username: gitHubConfig.owner,
-          addedAt: Date.now(),
-        },
+          addedAt: Date.now()
+        }
       ];
     }
     return [];
@@ -105,7 +100,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
   const [baseBranch, setBaseBranch] = useState(gitHubConfig.branch || 'main');
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
   const [branchToDelete, setBranchToDelete] = useState<string | null>(null);
-  const [isDeletingBranch, setIsDeletingBranch] = useState(false);
+  const [, setIsDeletingBranch] = useState(false);
 
   // Create repo modal
   const [showCreateRepoModal, setShowCreateRepoModal] = useState(false);
@@ -116,13 +111,15 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
   const t = {
     ru: {
       title: 'Интеграция с GitHub',
-      subtitle: 'Подключение удаленного репозитория GitHub, управление ветками, синхронизация и резервное копирование',
+      subtitle:
+        'Подключение удаленного репозитория GitHub, управление ветками, синхронизация и резервное копирование',
       tokenLabel: 'GitHub Personal Access Token (PAT):',
       tokenPlaceholder: 'ghp_xxxxxxxxxxxxxxxxxxxxxx',
       connectBtn: 'Подключить GitHub',
       disconnectBtn: 'Отключить',
       connectedAs: 'Подключен как:',
-      tokenHelp: 'Для работы требуется токен с разрешением "repo". Создайте его на GitHub: Settings → Developer Settings → Personal access tokens (classic) → Generate token (выберите scope: repo).',
+      tokenHelp:
+        'Для работы требуется токен с разрешением "repo". Создайте его на GitHub: Settings → Developer Settings → Personal access tokens (classic) → Generate token (выберите scope: repo).',
       repoSection: 'Настройки репозитория GitHub',
       selectRepo: 'Выберите репозиторий:',
       createRepoBtn: 'Создать новый репозиторий',
@@ -151,7 +148,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
       deleteBranchConfirmTitle: 'Удалить ветку на GitHub?',
       deleteBranchConfirmDesc: (branch: string) =>
         `Вы уверены, что хотите удалить ветку "${branch}" из репозитория ${gitHubConfig.owner}/${gitHubConfig.repo}? Это действие нельзя отменить.`,
-      cannotDeleteActive: 'Нельзя удалить активную или защищенную ветку',
+      cannotDeleteActive: 'Нельзя удалить активную или защищенную ветку'
     },
     en: {
       title: 'GitHub Integration',
@@ -161,7 +158,8 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
       connectBtn: 'Connect GitHub',
       disconnectBtn: 'Disconnect',
       connectedAs: 'Connected as:',
-      tokenHelp: 'Requires a token with "repo" scope. Generate one at: GitHub → Settings → Developer Settings → Personal access tokens → Generate new token (classic).',
+      tokenHelp:
+        'Requires a token with "repo" scope. Generate one at: GitHub → Settings → Developer Settings → Personal access tokens → Generate new token (classic).',
       repoSection: 'GitHub Repository Settings',
       selectRepo: 'Select target repository:',
       createRepoBtn: 'Create New Repository',
@@ -190,8 +188,8 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
       deleteBranchConfirmTitle: 'Delete branch on GitHub?',
       deleteBranchConfirmDesc: (branch: string) =>
         `Are you sure you want to delete branch "${branch}" in repository ${gitHubConfig.owner}/${gitHubConfig.repo}? This action cannot be undone.`,
-      cannotDeleteActive: 'Cannot delete active or protected branch',
-    },
+      cannotDeleteActive: 'Cannot delete active or protected branch'
+    }
   }[lang];
 
   // Validate token on mount if present
@@ -225,7 +223,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
     return `${prefix}••••••••${suffix}`;
   };
 
-  const handleValidate = async (token: string, customLabel = '', logSuccess = true) => {
+  async function handleValidate(token: string, customLabel = '', logSuccess = true) {
     if (!token.trim()) return;
     setValidating(true);
     try {
@@ -243,7 +241,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
           token: cleanToken,
           username: user.login,
           avatarUrl: user.avatar_url,
-          addedAt: Date.now(),
+          addedAt: Date.now()
         };
         const updated =
           existingIdx >= 0
@@ -275,7 +273,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
         repo: selectedRepo ? selectedRepo.name : '',
         branch: selectedRepo?.default_branch || 'main',
         path: gitHubConfig.path || '',
-        autoPush: gitHubConfig.autoPush ?? true,
+        autoPush: gitHubConfig.autoPush ?? true
       });
 
       if (logSuccess) onLog(`GitHub подключен к аккаунту: @${user.login}`, 'success');
@@ -290,7 +288,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
       setValidating(false);
       setLoadingRepos(false);
     }
-  };
+  }
 
   const handleSelectSavedToken = async (saved: SavedGitHubToken) => {
     if (!saved.token) return;
@@ -326,7 +324,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
     onLog(`Ключ "${toDelete.name}" удален`, 'info');
   };
 
-  const loadBranchesList = async () => {
+  async function loadBranchesList() {
     if (!gitHubConfig.token || !gitHubConfig.owner || !gitHubConfig.repo) return;
     setLoadingBranches(true);
     try {
@@ -346,7 +344,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
       if (branchList.length > 0 && !branchList.some((b) => b.name === gitHubConfig.branch)) {
         onUpdateConfig({
           ...gitHubConfig,
-          branch: branchList[0].name,
+          branch: branchList[0].name
         });
       }
 
@@ -376,9 +374,9 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
     } finally {
       setLoadingBranches(false);
     }
-  };
+  }
 
-  const loadRemoteCommitsList = async () => {
+  async function loadRemoteCommitsList() {
     if (!gitHubConfig.token || !gitHubConfig.owner || !gitHubConfig.repo) return;
     setLoadingCommits(true);
     try {
@@ -394,7 +392,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
     } finally {
       setLoadingCommits(false);
     }
-  };
+  }
 
   const handleDisconnect = () => {
     onUpdateConfig({
@@ -404,7 +402,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
       branch: 'main',
       path: '',
       autoPush: false,
-      connected: false,
+      connected: false
     });
     setGitUser(null);
     setRepos([]);
@@ -417,7 +415,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
   const handleSwitchBranch = (branchName: string) => {
     onUpdateConfig({
       ...gitHubConfig,
-      branch: branchName,
+      branch: branchName
     });
     onLog(`Активная ветка переключена на: ${branchName}`, 'info');
   };
@@ -456,23 +454,12 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
   };
 
   const handleConfirmDeleteBranch = async () => {
-    if (
-      !branchToDelete ||
-      !gitHubConfig.token ||
-      !gitHubConfig.owner ||
-      !gitHubConfig.repo
-    )
-      return;
+    if (!branchToDelete || !gitHubConfig.token || !gitHubConfig.owner || !gitHubConfig.repo) return;
 
     setIsDeletingBranch(true);
     try {
       onLog(`Удаление ветки "${branchToDelete}" с GitHub...`, 'warning');
-      await deleteBranch(
-        gitHubConfig.token,
-        gitHubConfig.owner,
-        gitHubConfig.repo,
-        branchToDelete
-      );
+      await deleteBranch(gitHubConfig.token, gitHubConfig.owner, gitHubConfig.repo, branchToDelete);
 
       onLog(`Ветка "${branchToDelete}" удалена`, 'success');
       setBranchToDelete(null);
@@ -517,7 +504,9 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
 
       onLog(`Успешно отправлено на GitHub! Коммит: ${result.commitSha.slice(0, 7)}`, 'success');
       loadRemoteCommitsList();
-      alert(`Успешно отправлено в ветку ${gitHubConfig.branch} на GitHub!\nСсылка: ${result.commitUrl}`);
+      alert(
+        `Успешно отправлено в ветку ${gitHubConfig.branch} на GitHub!\nСсылка: ${result.commitUrl}`
+      );
     } catch (err: any) {
       onLog(`Ошибка отправки на GitHub: ${err.message}`, 'error');
       alert(`Ошибка: ${err.message}`);
@@ -537,9 +526,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
         gitHubConfig.token,
         newRepoName.trim(),
         isPrivate,
-        project
-          ? `Automated backup of ${project.title} via ScriptVault`
-          : 'Created via ScriptVault'
+        project ? `Automated backup of ${project.title} via ScriptVault` : 'Created via ScriptVault'
       );
 
       onLog(`Репозиторий ${created.full_name} успешно создан!`, 'success');
@@ -548,7 +535,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
         ...gitHubConfig,
         owner: created.full_name.split('/')[0],
         repo: created.name,
-        branch: created.default_branch || 'main',
+        branch: created.default_branch || 'main'
       });
       setShowCreateRepoModal(false);
       setNewRepoName('');
@@ -636,9 +623,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
               <span>Подключение через Personal Access Token (PAT)</span>
             </div>
             {savedTokens.length > 0 && (
-              <span className="text-xs text-slate-400">
-                Сохранено ключей: {savedTokens.length}
-              </span>
+              <span className="text-xs text-slate-400">Сохранено ключей: {savedTokens.length}</span>
             )}
           </div>
 
@@ -668,9 +653,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
                         </div>
                       )}
                       <div className="min-w-0">
-                        <div className="text-xs font-semibold text-white truncate">
-                          {tok.name}
-                        </div>
+                        <div className="text-xs font-semibold text-white truncate">{tok.name}</div>
                         <div className="text-[10px] text-slate-400 font-mono truncate">
                           {maskToken(tok.token)}
                         </div>
@@ -704,9 +687,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
           {/* New Token Input Form */}
           <div className="space-y-3">
             <div className="text-xs font-semibold text-slate-300">
-              {savedTokens.length > 0
-                ? 'Или введите новый Personal Access Token:'
-                : t.tokenLabel}
+              {savedTokens.length > 0 ? 'Или введите новый Personal Access Token:' : t.tokenLabel}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <input
@@ -824,7 +805,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
                       ...gitHubConfig,
                       owner,
                       repo,
-                      branch: selected?.default_branch || 'main',
+                      branch: selected?.default_branch || 'main'
                     });
                   }}
                   className="w-full px-3.5 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:outline-none focus:border-indigo-500 font-mono"
@@ -852,40 +833,42 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
                 {/* Folder Suggestions */}
                 {project && (
                   <div className="flex items-center gap-1.5 mt-2 flex-wrap text-[11px]">
-                  <span className="text-slate-500">Папка для скрипта:</span>
-                  {project.parentTitle && (
+                    <span className="text-slate-500">Папка для скрипта:</span>
+                    {project.parentTitle && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateConfig({
+                            ...gitHubConfig,
+                            path: project.parentTitle
+                              ? project.parentTitle.replace(/[\\/:*?"<>|]/g, '_')
+                              : ''
+                          })
+                        }
+                        className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 transition cursor-pointer"
+                      >
+                        📁 {project.parentTitle}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() =>
                         onUpdateConfig({
                           ...gitHubConfig,
-                          path: project.parentTitle ? project.parentTitle.replace(/[\/\\:*?"<>|]/g, '_') : '',
+                          path: `${project.title.replace(/[\\/:*?"<>|]/g, '_')}`
                         })
                       }
-                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 transition cursor-pointer"
+                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 transition cursor-pointer"
                     >
-                      📁 {project.parentTitle}
+                      📁 {project.title}
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onUpdateConfig({
-                        ...gitHubConfig,
-                        path: `${project.title.replace(/[\/\\:*?"<>|]/g, '_')}`,
-                      })
-                    }
-                    className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 transition cursor-pointer"
-                  >
-                    📁 {project.title}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onUpdateConfig({ ...gitHubConfig, path: '' })}
-                    className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 transition cursor-pointer"
-                  >
-                    Корень (/)
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => onUpdateConfig({ ...gitHubConfig, path: '' })}
+                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 transition cursor-pointer"
+                    >
+                      Корень (/)
+                    </button>
                   </div>
                 )}
               </div>
@@ -1086,7 +1069,8 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
               <div className="space-y-0.5">
                 <div className="text-sm font-semibold text-slate-200">{t.autoPushToggle}</div>
                 <div className="text-xs text-slate-400">
-                  При каждом локальном коммите или резервной копии код будет отправляться в ветку <b>{gitHubConfig.branch}</b>.
+                  При каждом локальном коммите или резервной копии код будет отправляться в ветку{' '}
+                  <b>{gitHubConfig.branch}</b>.
                 </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -1122,7 +1106,8 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-indigo-400" />
                 <span>
-                  {t.recentCommitsTitle} <code className="text-purple-300">({gitHubConfig.branch})</code>
+                  {t.recentCommitsTitle}{' '}
+                  <code className="text-purple-300">({gitHubConfig.branch})</code>
                 </span>
               </h4>
               <button
@@ -1143,7 +1128,10 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
             ) : (
               <div className="divide-y divide-slate-800/80 border border-slate-800/80 rounded-xl bg-slate-950/60 overflow-hidden font-mono text-xs">
                 {remoteCommits.map((c) => (
-                  <div key={c.sha} className="p-3 hover:bg-slate-900/60 transition flex items-center justify-between gap-3">
+                  <div
+                    key={c.sha}
+                    className="p-3 hover:bg-slate-900/60 transition flex items-center justify-between gap-3"
+                  >
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="font-semibold text-purple-300 shrink-0 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20">
                         {c.sha}
@@ -1304,9 +1292,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
                   <Key className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">
-                    Управление ключами GitHub
-                  </h3>
+                  <h3 className="text-base font-bold text-white">Управление ключами GitHub</h3>
                   <p className="text-xs text-slate-400">
                     Выберите сохраненный токен или добавьте новый
                   </p>
@@ -1481,7 +1467,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
             ? [
                 `Репозиторий: ${gitHubConfig.owner}/${gitHubConfig.repo}`,
                 `Ветка: ${branchToDelete}`,
-                `Внимание: все коммиты, существующие только в этой ветке, станут недоступны`,
+                `Внимание: все коммиты, существующие только в этой ветке, станут недоступны`
               ]
             : []
         }
@@ -1508,7 +1494,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
                 tokenToDelete.username ? `Пользователь: @${tokenToDelete.username}` : '',
                 gitHubConfig.token === tokenToDelete.token
                   ? 'Внимание: этот токен сейчас активен, после удаления GitHub будет отключен'
-                  : 'Токен будет удален из списка сохраненных',
+                  : 'Токен будет удален из списка сохраненных'
               ].filter(Boolean)
             : []
         }

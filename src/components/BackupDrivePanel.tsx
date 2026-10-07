@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Cloud,
-  FolderSync,
   Clock,
   HardDrive,
-  Download,
   RefreshCw,
   CheckCircle2,
   FileJson,
@@ -16,8 +13,6 @@ import {
   Check,
   Code2,
   FileSpreadsheet,
-  AlertCircle,
-  HelpCircle,
   Settings2
 } from 'lucide-react';
 import { AppsScriptProject, DriveBackupSnapshot, DriveFolder, SyncSettings } from '../types';
@@ -48,7 +43,7 @@ export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
   onTriggerBackupNow,
   isSyncing,
   lang,
-  onLog,
+  onLog
 }) => {
   // Folder selector state
   const [showFolderModal, setShowFolderModal] = useState(false);
@@ -81,7 +76,8 @@ export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
       customIntervalLabel: 'Или задайте интервал вручную (в секундах):',
       applyInterval: 'Применить',
       scriptsSection: '3. Выбор скриптов для синхронизации',
-      scriptsSubtitle: 'Отметьте скрипты, которые должны автоматически проверяться и сохраняться на Google Диск:',
+      scriptsSubtitle:
+        'Отметьте скрипты, которые должны автоматически проверяться и сохраняться на Google Диск:',
       selectAll: 'Выбрать все',
       deselectAll: 'Снять все',
       selectedCount: 'Выбрано для синхронизации:',
@@ -97,7 +93,7 @@ export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
       folderNamePlaceholder: 'Например, AppsScript_Backups_2026',
       createFolderAction: 'Создать и выбрать',
       close: 'Закрыть',
-      noDriveToken: 'Для доступа к Google Диску выполните вход в аккаунт Google в верхней панели.',
+      noDriveToken: 'Для доступа к Google Диску выполните вход в аккаунт Google в верхней панели.'
     },
     en: {
       title: 'Sync Settings & Google Drive',
@@ -112,7 +108,8 @@ export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
       customIntervalLabel: 'Or enter custom interval (in seconds):',
       applyInterval: 'Apply',
       scriptsSection: '3. Select Scripts to Synchronize',
-      scriptsSubtitle: 'Check the scripts that should be automatically tracked and backed up to Google Drive:',
+      scriptsSubtitle:
+        'Check the scripts that should be automatically tracked and backed up to Google Drive:',
       selectAll: 'Select All',
       deselectAll: 'Deselect All',
       selectedCount: 'Selected for sync:',
@@ -128,8 +125,8 @@ export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
       folderNamePlaceholder: 'e.g., AppsScript_Backups_2026',
       createFolderAction: 'Create & Select',
       close: 'Close',
-      noDriveToken: 'Sign in with Google in the top bar to access Drive folders.',
-    },
+      noDriveToken: 'Sign in with Google in the top bar to access Drive folders.'
+    }
   }[lang];
 
   // Load folders when opening folder modal
@@ -165,7 +162,7 @@ export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
     onUpdateSettings({
       ...settings,
       backupFolderId: folder.id,
-      backupFolderName: folder.name,
+      backupFolderName: folder.name
     });
     setShowFolderModal(false);
     onLog(`Выбрана папка для резервного копирования: ${folder.name} (ID: ${folder.id})`, 'success');
@@ -222,7 +219,7 @@ export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
   };
 
   const toggleScriptSelection = (scriptId: string) => {
-    let currentSelected = settings.selectedScriptIds || allProjects.map((p) => p.scriptId);
+    const currentSelected = settings.selectedScriptIds || allProjects.map((p) => p.scriptId);
     let updated: string[];
     if (currentSelected.includes(scriptId)) {
       updated = currentSelected.filter((id) => id !== scriptId);
@@ -231,21 +228,21 @@ export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
     }
     onUpdateSettings({
       ...settings,
-      selectedScriptIds: updated,
+      selectedScriptIds: updated
     });
   };
 
   const handleSelectAllScripts = () => {
     onUpdateSettings({
       ...settings,
-      selectedScriptIds: allProjects.map((p) => p.scriptId),
+      selectedScriptIds: allProjects.map((p) => p.scriptId)
     });
   };
 
   const handleDeselectAllScripts = () => {
     onUpdateSettings({
       ...settings,
-      selectedScriptIds: [],
+      selectedScriptIds: []
     });
   };
 
@@ -253,7 +250,7 @@ export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
     const val = Math.max(5, Math.min(86400, Number(customSeconds) || 30));
     onUpdateSettings({
       ...settings,
-      intervalSeconds: val,
+      intervalSeconds: val
     });
     onLog(`Интервал синхронизации установлен: ${val} секунд`, 'info');
   };
@@ -271,9 +268,10 @@ export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
     }
   };
 
-  const selectedCount = (settings.selectedScriptIds && settings.selectedScriptIds.length > 0)
-    ? settings.selectedScriptIds.length
-    : allProjects.length;
+  const selectedCount =
+    settings.selectedScriptIds && settings.selectedScriptIds.length > 0
+      ? settings.selectedScriptIds.length
+      : allProjects.length;
 
   return (
     <div className="space-y-6">
@@ -364,16 +362,15 @@ export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
           <div className="space-y-0.5">
             <div className="text-sm font-semibold text-slate-200">{t.autoSyncToggle}</div>
             <div className="text-xs text-slate-400">
-              Периодический опрос изменений кода и автоматическое создание коммитов в Git и Google Диск.
+              Периодический опрос изменений кода и автоматическое создание коммитов в Git и Google
+              Диск.
             </div>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
               type="checkbox"
               checked={settings.autoSyncEnabled}
-              onChange={(e) =>
-                onUpdateSettings({ ...settings, autoSyncEnabled: e.target.checked })
-              }
+              onChange={(e) => onUpdateSettings({ ...settings, autoSyncEnabled: e.target.checked })}
               className="sr-only peer"
             />
             <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600" />
@@ -382,7 +379,9 @@ export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
 
         {/* Presets Grid */}
         <div className="space-y-2">
-          <label className="text-xs font-medium text-slate-300 block">{t.intervalPresetLabel}</label>
+          <label className="text-xs font-medium text-slate-300 block">
+            {t.intervalPresetLabel}
+          </label>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             {[
               { sec: 10, label: '10 сек (Ультра)' },
@@ -390,7 +389,7 @@ export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
               { sec: 60, label: '1 минута' },
               { sec: 300, label: '5 минут' },
               { sec: 900, label: '15 минут' },
-              { sec: 3600, label: '1 час' },
+              { sec: 3600, label: '1 час' }
             ].map((preset) => (
               <button
                 key={preset.sec}
@@ -414,9 +413,7 @@ export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
 
         {/* Custom interval */}
         <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <label className="text-xs font-medium text-slate-300">
-            {t.customIntervalLabel}
-          </label>
+          <label className="text-xs font-medium text-slate-300">{t.customIntervalLabel}</label>
           <div className="flex items-center gap-2">
             <input
               type="number"
@@ -520,8 +517,8 @@ export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
                 <div className="shrink-0 flex items-center gap-2">
                   {selected ? (
                     <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      В авто-синхронизации
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />В
+                      авто-синхронизации
                     </span>
                   ) : (
                     <span className="text-[11px] text-slate-500 bg-slate-900 px-2 py-0.5 rounded-full border border-slate-800">
@@ -646,7 +643,10 @@ export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
               </form>
 
               {/* Create new folder inline */}
-              <form onSubmit={handleCreateAndSelectFolder} className="flex gap-2 pt-2 border-t border-slate-800/60">
+              <form
+                onSubmit={handleCreateAndSelectFolder}
+                className="flex gap-2 pt-2 border-t border-slate-800/60"
+              >
                 <div className="relative flex-1">
                   <FolderPlus className="w-4 h-4 absolute left-3 top-2.5 text-indigo-400" />
                   <input
@@ -671,9 +671,7 @@ export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
             {/* Folder List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {!accessToken ? (
-                <div className="p-8 text-center text-xs text-slate-400">
-                  {t.noDriveToken}
-                </div>
+                <div className="p-8 text-center text-xs text-slate-400">{t.noDriveToken}</div>
               ) : loadingFolders ? (
                 <div className="p-8 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
                   <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
