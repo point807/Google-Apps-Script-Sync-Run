@@ -1,3 +1,4 @@
+import { apiFetch } from './http';
 import JSZip from 'jszip';
 import { AppsScriptProject, ScriptFile } from '../types';
 
@@ -68,7 +69,7 @@ export const fetchAppsScriptProject = async (
   let parentId: string | undefined = undefined;
 
   try {
-    const metaRes = await fetch(`${SCRIPT_API_BASE}/projects/${cleanScriptId}`, {
+    const metaRes = await apiFetch(`${SCRIPT_API_BASE}/projects/${cleanScriptId}`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     if (metaRes.ok) {
@@ -83,7 +84,7 @@ export const fetchAppsScriptProject = async (
   // 2. Fetch project files content
   let contentRes: Response;
   try {
-    contentRes = await fetch(`${SCRIPT_API_BASE}/projects/${cleanScriptId}/content`, {
+    contentRes = await apiFetch(`${SCRIPT_API_BASE}/projects/${cleanScriptId}/content`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
   } catch (netErr: any) {
@@ -178,7 +179,7 @@ export const updateAppsScriptProject = async (
 ): Promise<void> => {
   const cleanScriptId = extractScriptId(scriptId);
 
-  const res = await fetch(`${SCRIPT_API_BASE}/projects/${cleanScriptId}/content`, {
+  const res = await apiFetch(`${SCRIPT_API_BASE}/projects/${cleanScriptId}/content`, {
     method: 'PUT',
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -410,7 +411,7 @@ export const runAppsScriptFunction = async (
   // 1. Try Google Apps Script API (scripts.run) if accessToken is provided
   if (accessToken && scriptId && scriptId.length > 10) {
     try {
-      const res = await fetch(`${SCRIPT_API_BASE}/scripts/${extractScriptId(scriptId)}:run`, {
+      const res = await apiFetch(`${SCRIPT_API_BASE}/scripts/${extractScriptId(scriptId)}:run`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,

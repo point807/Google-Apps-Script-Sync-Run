@@ -1,3 +1,4 @@
+import { apiFetch } from './http';
 import { GoogleDriveFile, DriveBackupSnapshot, DriveFolder } from '../types';
 
 const DRIVE_API_BASE = 'https://www.googleapis.com/drive/v3';
@@ -17,7 +18,7 @@ export const listGoogleDriveFolders = async (
   url.searchParams.append('fields', 'files(id, name, createdTime, modifiedTime)');
   url.searchParams.append('orderBy', 'name asc');
 
-  const res = await fetch(url.toString(), {
+  const res = await apiFetch(url.toString(), {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
 
@@ -48,7 +49,7 @@ export const createCustomDriveFolder = async (
     body.parents = [parentFolderId];
   }
 
-  const res = await fetch(`${DRIVE_API_BASE}/files`, {
+  const res = await apiFetch(`${DRIVE_API_BASE}/files`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -88,7 +89,7 @@ export const listGoogleSpreadsheets = async (
 
   let res: Response;
   try {
-    res = await fetch(url.toString(), {
+    res = await apiFetch(url.toString(), {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
   } catch (netErr: any) {
@@ -128,7 +129,7 @@ export const listGoogleScripts = async (
 
   let res: Response;
   try {
-    res = await fetch(url.toString(), {
+    res = await apiFetch(url.toString(), {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
   } catch (netErr: any) {
@@ -158,7 +159,7 @@ export const getOrCreateBackupFolder = async (
   url.searchParams.append('q', query);
   url.searchParams.append('fields', 'files(id, name)');
 
-  const res = await fetch(url.toString(), {
+  const res = await apiFetch(url.toString(), {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
 
@@ -170,7 +171,7 @@ export const getOrCreateBackupFolder = async (
   }
 
   // Create folder if not found
-  const createRes = await fetch(`${DRIVE_API_BASE}/files`, {
+  const createRes = await apiFetch(`${DRIVE_API_BASE}/files`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -218,7 +219,7 @@ export const saveSnapshotToDrive = async (
     fileContent +
     closeDelimiter;
 
-  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+  const res = await apiFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -249,7 +250,7 @@ export const copySpreadsheetBackup = async (
     body.parents = [destinationFolderId];
   }
 
-  const res = await fetch(`${DRIVE_API_BASE}/files/${spreadsheetId}/copy`, {
+  const res = await apiFetch(`${DRIVE_API_BASE}/files/${spreadsheetId}/copy`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -277,7 +278,7 @@ export const listDriveSnapshots = async (
   url.searchParams.append('orderBy', 'createdTime desc');
   url.searchParams.append('pageSize', '50');
 
-  const res = await fetch(url.toString(), {
+  const res = await apiFetch(url.toString(), {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
 
@@ -300,7 +301,7 @@ export const downloadDriveFileContent = async (
   accessToken: string,
   fileId: string
 ): Promise<string> => {
-  const res = await fetch(`${DRIVE_API_BASE}/files/${fileId}?alt=media`, {
+  const res = await apiFetch(`${DRIVE_API_BASE}/files/${fileId}?alt=media`, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
 

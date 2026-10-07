@@ -96,7 +96,13 @@ describe('computeProjectDiff', () => {
 
 describe('createCommit', () => {
   it('creates the first commit and stores it', async () => {
-    const commit = await createCommit('script-1', [file('Code', 'v1')], 'Initial', 'Tester', 'main');
+    const commit = await createCommit(
+      'script-1',
+      [file('Code', 'v1')],
+      'Initial',
+      'Tester',
+      'main'
+    );
     expect(commit).not.toBeNull();
     expect(commit!.parentId).toBeUndefined();
     expect(await loadCommits('script-1')).toHaveLength(1);
@@ -119,9 +125,16 @@ describe('createCommit', () => {
 
   it('creates a commit even without changes when forced', async () => {
     await createCommit('script-1', [file('Code', 'v1')], 'Initial', 'Tester', 'main');
-    const forced = await createCommit('script-1', [file('Code', 'v1')], 'Forced', 'Tester', 'main', {
-      force: true
-    });
+    const forced = await createCommit(
+      'script-1',
+      [file('Code', 'v1')],
+      'Forced',
+      'Tester',
+      'main',
+      {
+        force: true
+      }
+    );
     expect(forced).not.toBeNull();
     expect(await loadCommits('script-1')).toHaveLength(2);
   });

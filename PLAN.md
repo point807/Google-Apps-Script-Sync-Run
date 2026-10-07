@@ -81,17 +81,17 @@
 - [x] Тесты `tokenStore`: политика хранения, маскирование, миграция и вычистка легаси-ключей.
 - [ ] (опц., позже) backend-прокси для GitHub-токена — если приложение станет публичным.
 
-### Фаза C — Архитектура и хранилище (3–5 дней)
+### Фаза C — Архитектура и хранилище (в процессе)
 
-- [ ] **Слой хранилища:** `storage.ts` с интерфейсом `get/set/list`, реализация на IndexedDB (`idb`) для истории коммитов и снимков; миграция данных из localStorage при первом запуске. Квота вырастает с ~5 МБ до сотен МБ.
+- [x] **Слой хранилища:** `storage.ts` на IndexedDB (`idb`) — история коммитов переехала из localStorage (квота ~5 МБ больше не теряет историю); одноразовая миграция легаси-данных с сохранностью при сбоях. `kvStorage` приготовлен для будущих снимков.
+- [x] **HTTP-клиент:** `http.ts` (`apiFetch`) — retry с exponential backoff + jitter, уважение `Retry-After`; безопасная политика: 429 ретраится всегда (запрос отклонён), сетевые ошибки/5xx — только для идемпотентных методов. Подключён ко всем трём API-сервисам (32 вызова).
 - [ ] **Состояние:** вынести из `App.tsx` в Zustand (или Context + custom hooks): `useAuth`, `useProjects`, `useHistory`, `useSync`, `useGitHub`, `useLogs`. Убрать проп-дрейлинг.
 - [ ] **Разбор гигантских компонентов:**
   - `CodeWorkspace` → `FileTree`, `EditorPane`, `RunPanel`, `ProjectToolbar`, `DiffViewer`;
   - `GitHubPanel` → `RepoConnectForm`, `BranchManager`, `CommitHistory`, `PushDialog`, `RepoCreateDialog`;
   - `BackupDrivePanel` → `FolderPicker`, `SnapshotList`, `SyncSettings`.
-- [ ] **HTTP-клиент:** общий `apiFetch` с retry + exponential backoff на 429/5xx, единый формат ошибок (`Result<T>` или error-классы), нормальные сообщения для пользователя (сейчас разнобой).
-- [ ] i18n: словари `ru.json` / `en.json` + хук `t()`, никаких строк в компонентах.
-- [ ] Синхронизация: нормальный менеджер с состояниями (idle/syncing/error), отменой через `AbortController`, защитой от параллельных запусков.
+- [ ] **i18n:** словари `ru.json` / `en.json` + хук `t()`, никаких строк в компонентах.
+- [ ] **Синхронизация:** состояния (idle/syncing/error), отмена через `AbortController`, защита от параллельных запусков.
 
 ### Фаза D — Улучшения продукта (по приоритетам)
 
