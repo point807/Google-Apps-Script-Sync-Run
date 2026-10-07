@@ -9,6 +9,7 @@ import { AppsScriptProject, GitHubConfig, ScriptFile, SyncLogEntry, SyncSettings
 import { initAuth, googleSignIn, logout } from './services/firebaseAuth';
 import { SAMPLE_SHEETS_SCRIPTS } from './services/sampleScripts';
 import { syncCoordinator } from './services/syncManager';
+import { loadToken, persistGitHubConfig } from './services/tokenStore';
 import { createCommit } from './services/gitService';
 import { Navbar } from './components/Navbar';
 import { SpreadsheetPicker } from './components/SpreadsheetPicker';
@@ -87,15 +88,17 @@ export default function App() {
     return DEFAULT_SYNC_SETTINGS;
   });
 
-  // GitHub Config
+  // GitHub Config (token itself is stored separately by tokenStore — never in this key)
   const [gitHubConfig, setGitHubConfig] = useState<GitHubConfig>(() => {
+    let base = DEFAULT_GITHUB_CONFIG;
     try {
       const saved = localStorage.getItem('scriptvault_gh_config');
-      if (saved) return JSON.parse(saved);
+      if (saved) base = { ...DEFAULT_GITHUB_CONFIG, ...JSON.parse(saved) };
     } catch (e) {
       // ignore
     }
-    return DEFAULT_GITHUB_CONFIG;
+    const storedToken = loadToken();
+    return storedToken ? { ...base, token: storedToken.token } : base;
   });
 
   // Logs
@@ -241,14 +244,10 @@ export default function App() {
     }
   };
 
-  // Persist GitHub config
+  // Persist GitHub config (secrets are stripped — see persistGitHubConfig)
   const handleUpdateGitHubConfig = (newConfig: GitHubConfig) => {
     setGitHubConfig(newConfig);
-    try {
-      localStorage.setItem('scriptvault_gh_config', JSON.stringify(newConfig));
-    } catch (e) {
-      // ignore
-    }
+    persistGitHubConfig(newConfig);
   };
 
   const handleGoogleSignIn = async () => {

@@ -33,6 +33,15 @@ if (missingVars.length > 0) {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 
+// OAuth scopes requested at sign-in. Each one is needed for a concrete feature:
+// - drive            → search/list scripts and spreadsheets on Drive, create backup
+//                      folders and snapshot files, copy spreadsheets (Drive API v3);
+// - drive.scripts    → manage standalone Apps Script project files stored on Drive;
+// - spreadsheets     → read spreadsheet metadata when binding scripts to Sheets;
+// - script.projects  → read/write Apps Script project content and run functions
+//                      (Google Apps Script API).
+// Narrowing these (e.g. to drive.file) would break listing and copying files the
+// app did not create — revisit if the feature set changes.
 export const SCOPES = [
   'https://www.googleapis.com/auth/drive',
   'https://www.googleapis.com/auth/drive.scripts',

@@ -16,10 +16,10 @@ import {
   Check,
   ArrowRight,
   Network,
-  List,
-  X
+  List
 } from 'lucide-react';
-import { AppsScriptProject, GitHubConfig, SavedGitHubToken } from '../types';
+import { AppsScriptProject, GitHubConfig } from '../types';
+import { clearToken, isRemembered, maskToken, saveToken } from '../services/tokenStore';
 import {
   validateGitHubToken,
   listRepositories,
@@ -54,7 +54,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
   lang,
   onLog
 }) => {
-  const [tokenInput, setTokenInput] = useState(gitHubConfig.token || '');
+  const [tokenInput, setTokenInput] = useState('');
   const [validating, setValidating] = useState(false);
   const [gitUser, setGitUser] = useState<GitHubUser | null>(null);
   const [repos, setRepos] = useState<GitHubRepo[]>([]);
@@ -63,32 +63,8 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
   const [remoteCommits, setRemoteCommits] = useState<RemoteCommitInfo[]>([]);
   const [loadingCommits, setLoadingCommits] = useState(false);
 
-  // Saved Tokens / Multi-account Management
-  const [savedTokens, setSavedTokens] = useState<SavedGitHubToken[]>(() => {
-    try {
-      const stored = localStorage.getItem('scriptvault_saved_github_tokens');
-      if (stored) return JSON.parse(stored);
-    } catch {
-      // ignore
-    }
-    if (gitHubConfig.token) {
-      return [
-        {
-          id: 'token-initial',
-          name: gitHubConfig.owner ? `@${gitHubConfig.owner}` : 'Активный ключ',
-          token: gitHubConfig.token,
-          username: gitHubConfig.owner,
-          addedAt: Date.now()
-        }
-      ];
-    }
-    return [];
-  });
-  const [showTokenModal, setShowTokenModal] = useState(false);
-  const [newTokenInput, setNewTokenInput] = useState('');
-  const [newTokenLabel, setNewTokenLabel] = useState('');
-  const [switchingToken, setSwitchingToken] = useState(false);
-  const [tokenToDelete, setTokenToDelete] = useState<SavedGitHubToken | null>(null);
+  // Token persistence: session-only by default, localStorage when "remember" is checked
+  const [rememberToken, setRememberToken] = useState(() => isRemembered());
 
   // Branch management state
   const [branches, setBranches] = useState<GitHubBranch[]>([]);
@@ -195,7 +171,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
   // Validate token on mount if present
   useEffect(() => {
     if (gitHubConfig.token && !gitUser) {
-      handleValidate(gitHubConfig.token, '', false);
+      handleValidate(gitHubConfig.token, false);
     }
   }, [gitHubConfig.token]);
 
@@ -214,16 +190,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
     }
   }, [gitHubConfig.branch]);
 
-  const maskToken = (tok: string) => {
-    if (!tok) return '';
-    const clean = tok.trim();
-    if (clean.length <= 8) return '••••••••';
-    const prefix = clean.slice(0, 4);
-    const suffix = clean.slice(-4);
-    return `${prefix}••••••••${suffix}`;
-  };
-
-  async function handleValidate(token: string, customLabel = '', logSuccess = true) {
+  async function handleValidate(token: string, logSuccess = true) {
     if (!token.trim()) return;
     setValidating(true);
     try {
@@ -231,29 +198,8 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
       const user = await validateGitHubToken(cleanToken);
       setGitUser(user);
 
-      // Save/update in savedTokens
-      const label = customLabel.trim() || `@${user.login}`;
-      setSavedTokens((prev) => {
-        const existingIdx = prev.findIndex((item) => item.token === cleanToken);
-        const entry: SavedGitHubToken = {
-          id: existingIdx >= 0 ? prev[existingIdx].id : `token-${Date.now()}`,
-          name: label,
-          token: cleanToken,
-          username: user.login,
-          avatarUrl: user.avatar_url,
-          addedAt: Date.now()
-        };
-        const updated =
-          existingIdx >= 0
-            ? prev.map((item, idx) => (idx === existingIdx ? entry : item))
-            : [entry, ...prev];
-        try {
-          localStorage.setItem('scriptvault_saved_github_tokens', JSON.stringify(updated));
-        } catch {
-          // ignore
-        }
-        return updated;
-      });
+      // Persist token according to the remember policy (session by default)
+      saveToken(cleanToken, { remember: rememberToken, username: user.login });
 
       // Load repos for this token
       setLoadingRepos(true);
@@ -277,9 +223,6 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
       });
 
       if (logSuccess) onLog(`GitHub подключен к аккаунту: @${user.login}`, 'success');
-      setShowTokenModal(false);
-      setNewTokenInput('');
-      setNewTokenLabel('');
       setTokenInput('');
     } catch (err: any) {
       onLog(`Ошибка подключения GitHub: ${err.message}`, 'error');
@@ -289,40 +232,6 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
       setLoadingRepos(false);
     }
   }
-
-  const handleSelectSavedToken = async (saved: SavedGitHubToken) => {
-    if (!saved.token) return;
-    setSwitchingToken(true);
-    try {
-      await handleValidate(saved.token, saved.name, true);
-    } catch (e: any) {
-      alert(`Не удалось подключить токен: ${e.message}`);
-    } finally {
-      setSwitchingToken(false);
-    }
-  };
-
-  const promptDeleteToken = (tok: SavedGitHubToken) => {
-    setTokenToDelete(tok);
-  };
-
-  const confirmDeleteToken = (tokenId: string) => {
-    const toDelete = savedTokens.find((t) => t.id === tokenId);
-    if (!toDelete) return;
-
-    const updated = savedTokens.filter((t) => t.id !== tokenId);
-    setSavedTokens(updated);
-    try {
-      localStorage.setItem('scriptvault_saved_github_tokens', JSON.stringify(updated));
-    } catch {
-      // ignore
-    }
-
-    if (gitHubConfig.token === toDelete.token) {
-      handleDisconnect();
-    }
-    onLog(`Ключ "${toDelete.name}" удален`, 'info');
-  };
 
   async function loadBranchesList() {
     if (!gitHubConfig.token || !gitHubConfig.owner || !gitHubConfig.repo) return;
@@ -395,6 +304,8 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
   }
 
   const handleDisconnect = () => {
+    clearToken();
+    setTokenInput('');
     onUpdateConfig({
       token: '',
       owner: '',
@@ -582,16 +493,6 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
               </div>
             </div>
 
-            {/* Switch Key Button */}
-            <button
-              type="button"
-              onClick={() => setShowTokenModal(true)}
-              className="px-2.5 py-1 text-xs font-semibold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 rounded-lg transition flex items-center gap-1.5 cursor-pointer ml-1"
-            >
-              <Key className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Сменить ключ</span>
-            </button>
-
             {/* Disconnect Button */}
             <button
               onClick={handleDisconnect}
@@ -600,18 +501,7 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
               {t.disconnectBtn}
             </button>
           </div>
-        ) : (
-          savedTokens.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowTokenModal(true)}
-              className="px-3 py-1.5 text-xs font-semibold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <Key className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Выбрать сохраненный ключ ({savedTokens.length})</span>
-            </button>
-          )
-        )}
+        ) : null}
       </div>
 
       {/* GitHub Authentication Card */}
@@ -622,93 +512,38 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
               <Key className="w-5 h-5 text-indigo-400" />
               <span>Подключение через Personal Access Token (PAT)</span>
             </div>
-            {savedTokens.length > 0 && (
-              <span className="text-xs text-slate-400">Сохранено ключей: {savedTokens.length}</span>
-            )}
           </div>
 
-          {/* Quick Select from Saved Tokens if available */}
-          {savedTokens.length > 0 && (
-            <div className="space-y-2.5 p-4 rounded-xl bg-slate-950/70 border border-slate-800">
-              <div className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-                <span>Быстрый вход по сохраненным ключам:</span>
-                <span className="text-[11px] text-slate-500">Нажмите «Выбрать»</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {savedTokens.map((tok) => (
-                  <div
-                    key={tok.id}
-                    className="p-3 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl flex items-center justify-between gap-2 transition"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      {tok.avatarUrl ? (
-                        <img
-                          src={tok.avatarUrl}
-                          alt={tok.username || tok.name}
-                          className="w-7 h-7 rounded-full border border-slate-700 shrink-0"
-                        />
-                      ) : (
-                        <div className="w-7 h-7 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold shrink-0">
-                          <Github className="w-4 h-4" />
-                        </div>
-                      )}
-                      <div className="min-w-0">
-                        <div className="text-xs font-semibold text-white truncate">{tok.name}</div>
-                        <div className="text-[10px] text-slate-400 font-mono truncate">
-                          {maskToken(tok.token)}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleSelectSavedToken(tok)}
-                        disabled={switchingToken || validating}
-                        className="px-2.5 py-1 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition cursor-pointer disabled:opacity-50"
-                      >
-                        {switchingToken ? '...' : 'Выбрать'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => promptDeleteToken(tok)}
-                        className="p-1 text-slate-500 hover:text-red-400 rounded transition cursor-pointer"
-                        title="Удалить сохраненный токен"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* New Token Input Form */}
           <div className="space-y-3">
-            <div className="text-xs font-semibold text-slate-300">
-              {savedTokens.length > 0 ? 'Или введите новый Personal Access Token:' : t.tokenLabel}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="text-xs font-semibold text-slate-300">{t.tokenLabel}</div>
+            <input
+              type="password"
+              autoComplete="off"
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              placeholder={t.tokenPlaceholder}
+              className="w-full px-4 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
+            />
+
+            <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer select-none">
               <input
-                type="password"
-                value={tokenInput}
-                onChange={(e) => setTokenInput(e.target.value)}
-                placeholder={t.tokenPlaceholder}
-                className="sm:col-span-2 px-4 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
+                type="checkbox"
+                checked={rememberToken}
+                onChange={(e) => setRememberToken(e.target.checked)}
+                className="rounded border-slate-600 bg-slate-950 cursor-pointer"
               />
-              <input
-                type="text"
-                value={newTokenLabel}
-                onChange={(e) => setNewTokenLabel(e.target.value)}
-                placeholder="Метка (например: Личный)"
-                className="px-3 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-              />
-            </div>
+              <span>
+                Запомнить токен на этом устройстве
+                <span className="text-slate-500">
+                  {' '}
+                  (хранится в localStorage — не используйте на общих компьютерах)
+                </span>
+              </span>
+            </label>
 
             <button
               type="button"
-              onClick={() => handleValidate(tokenInput, newTokenLabel)}
+              onClick={() => handleValidate(tokenInput)}
               disabled={validating || !tokenInput.trim()}
               className="w-full sm:w-auto px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-lg shadow-indigo-600/20 transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
             >
@@ -753,22 +588,14 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
                 </div>
                 <div className="text-[11px] text-slate-400 font-mono mt-0.5 flex items-center gap-2">
                   <span>Токен: {maskToken(gitHubConfig.token)}</span>
-                  {savedTokens.length > 1 && (
-                    <span className="text-slate-500">• Сохранено ключей: {savedTokens.length}</span>
-                  )}
+                  <span className="text-slate-500">
+                    •{' '}
+                    {isRemembered()
+                      ? 'запомнен на этом устройстве'
+                      : 'хранится до закрытия вкладки'}
+                  </span>
                 </div>
               </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowTokenModal(true)}
-                className="px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-sm"
-              >
-                <Key className="w-3.5 h-3.5" />
-                <span>Выбрать другой ключ / Добавить</span>
-              </button>
             </div>
           </div>
           {/* Repository Selector */}
@@ -1282,178 +1109,6 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
         </div>
       )}
 
-      {/* Modal: Manage & Switch GitHub Tokens */}
-      {showTokenModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl text-slate-200 space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
-                  <Key className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-white">Управление ключами GitHub</h3>
-                  <p className="text-xs text-slate-400">
-                    Выберите сохраненный токен или добавьте новый
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowTokenModal(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Saved tokens list */}
-            <div className="space-y-3">
-              <div className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-                <span>Сохраненные ключи ({savedTokens.length}):</span>
-              </div>
-
-              {savedTokens.length === 0 ? (
-                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 text-center text-xs text-slate-500">
-                  Нет сохраненных ключей. Добавьте первый токен ниже.
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                  {savedTokens.map((tok) => {
-                    const isActive = gitHubConfig.token === tok.token && gitHubConfig.connected;
-                    return (
-                      <div
-                        key={tok.id}
-                        className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition ${
-                          isActive
-                            ? 'bg-indigo-950/40 border-indigo-500/60 ring-1 ring-indigo-500/30'
-                            : 'bg-slate-950 border-slate-800 hover:border-slate-700'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          {tok.avatarUrl ? (
-                            <img
-                              src={tok.avatarUrl}
-                              alt={tok.username || tok.name}
-                              className="w-8 h-8 rounded-full border border-slate-700 shrink-0"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold shrink-0">
-                              <Github className="w-4 h-4" />
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold text-white truncate">
-                                {tok.name}
-                              </span>
-                              {isActive && (
-                                <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-semibold border border-emerald-500/20 shrink-0">
-                                  Активен
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] text-slate-400 font-mono truncate mt-0.5">
-                              {maskToken(tok.token)}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {!isActive && (
-                            <button
-                              type="button"
-                              onClick={() => handleSelectSavedToken(tok)}
-                              disabled={switchingToken || validating}
-                              className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition cursor-pointer disabled:opacity-50"
-                            >
-                              {switchingToken ? '...' : 'Выбрать этот ключ'}
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => promptDeleteToken(tok)}
-                            className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-lg transition cursor-pointer"
-                            title="Удалить сохраненный ключ"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Add New Key Section */}
-            <div className="space-y-3 pt-3 border-t border-slate-800">
-              <div className="text-xs font-semibold text-white flex items-center gap-2">
-                <Plus className="w-4 h-4 text-indigo-400" />
-                <span>Добавить и подключить новый токен</span>
-              </div>
-
-              <div className="space-y-2.5">
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-400 mb-1">
-                    Personal Access Token (PAT)
-                  </label>
-                  <input
-                    type="password"
-                    value={newTokenInput}
-                    onChange={(e) => setNewTokenInput(e.target.value)}
-                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxx или github_pat_..."
-                    className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-400 mb-1">
-                    Метка / имя ключа (опционально)
-                  </label>
-                  <input
-                    type="text"
-                    value={newTokenLabel}
-                    onChange={(e) => setNewTokenLabel(e.target.value)}
-                    placeholder="например: Личный аккаунт, Рабочий или Тестовый"
-                    className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleValidate(newTokenInput, newTokenLabel)}
-                  disabled={validating || !newTokenInput.trim()}
-                  className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-lg shadow-indigo-600/20 transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 mt-1"
-                >
-                  {validating ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Проверка и сохранение...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Подключить и сохранить новый ключ</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => setShowTokenModal(false)}
-                className="px-4 py-2 text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition cursor-pointer"
-              >
-                Закрыть
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Confirmation Modal for Branch Deletion */}
       <ConfirmationModal
         isOpen={!!branchToDelete}
@@ -1473,38 +1128,6 @@ export const GitHubPanel: React.FC<GitHubPanelProps> = ({
         }
         onConfirm={handleConfirmDeleteBranch}
         onCancel={() => setBranchToDelete(null)}
-      />
-
-      {/* Confirmation Modal for Token Deletion */}
-      <ConfirmationModal
-        isOpen={!!tokenToDelete}
-        title="Удалить сохраненный ключ GitHub?"
-        message={
-          tokenToDelete
-            ? `Вы уверены, что хотите удалить сохраненный ключ "${tokenToDelete.name}" (${maskToken(tokenToDelete.token)})?`
-            : ''
-        }
-        isDestructive={true}
-        confirmLabel="Да, удалить ключ"
-        cancelLabel="Отмена"
-        details={
-          tokenToDelete
-            ? [
-                `Имя токена: ${tokenToDelete.name}`,
-                tokenToDelete.username ? `Пользователь: @${tokenToDelete.username}` : '',
-                gitHubConfig.token === tokenToDelete.token
-                  ? 'Внимание: этот токен сейчас активен, после удаления GitHub будет отключен'
-                  : 'Токен будет удален из списка сохраненных'
-              ].filter(Boolean)
-            : []
-        }
-        onConfirm={() => {
-          if (tokenToDelete) {
-            confirmDeleteToken(tokenToDelete.id);
-            setTokenToDelete(null);
-          }
-        }}
-        onCancel={() => setTokenToDelete(null)}
       />
     </div>
   );
