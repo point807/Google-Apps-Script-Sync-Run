@@ -26,6 +26,7 @@ import {
   ScriptDeployment,
   updateAppsScriptProject
 } from '../services/appsScriptService';
+import { isCloudBoundProject } from '../services/projectOrigin';
 
 export interface DeploymentManagerProps {
   open: boolean;
@@ -52,10 +53,10 @@ export const DeploymentManager: React.FC<DeploymentManagerProps> = ({ open, onCl
   const [updateChoice, setUpdateChoice] = useState<Record<string, string>>({});
 
   const project = currentProject;
-  const canUseApi = !!accessToken && !!project && !project.scriptId.startsWith('1DEMO_');
+  const canUseApi = !!accessToken && !!project && isCloudBoundProject(project);
 
   const refresh = useCallback(async () => {
-    if (!accessToken || !project || project.scriptId.startsWith('1DEMO_')) return;
+    if (!accessToken || !project || !isCloudBoundProject(project)) return;
     setLoading(true);
     try {
       const [v, d] = await Promise.all([
@@ -168,7 +169,7 @@ export const DeploymentManager: React.FC<DeploymentManagerProps> = ({ open, onCl
       lastModified: new Date().toISOString()
     };
     onUpdateProject(updated);
-    if (accessToken && !proj.scriptId.startsWith('1DEMO_')) {
+    if (accessToken && isCloudBoundProject(proj)) {
       try {
         await updateAppsScriptProject(proj.scriptId, updatedFiles, accessToken);
         onLog('executionApi добавлен в манифест и сохранён в Apps Script', 'success');

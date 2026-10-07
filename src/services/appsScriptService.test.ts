@@ -144,3 +144,22 @@ describe('extractFunctionsFromCode', () => {
     expect(names).toContain('отправитьПриветствие');
   });
 });
+
+describe('function extraction performance guard', () => {
+  it('handles large files without pathological behaviour', () => {
+    const lines: string[] = [];
+    for (let i = 0; i < 1500; i++) {
+      lines.push(`function fn${i}() { return ${i}; }`);
+      lines.push(`  const value${i} = ${i} * 2;`);
+    }
+    const source = lines.join('\n');
+    const started = Date.now();
+    const funcs = extractFunctionsFromCode(source, 'Big');
+    const elapsed = Date.now() - started;
+
+    expect(funcs.filter((f) => f.name.startsWith('fn'))).toHaveLength(1500);
+    // Patterns are compiled once at module scope; anything above this bound
+    // means per-line RegExp construction crept back in.
+    expect(elapsed).toBeLessThan(500);
+  });
+});

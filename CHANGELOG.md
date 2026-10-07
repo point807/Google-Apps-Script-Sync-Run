@@ -2,6 +2,32 @@
 
 Все заметные изменения в ScriptVault документируются в этом файле. Формат — по [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), версионирование — SemVer.
 
+## [Unreleased] — импорт/экспорт скриптов и оптимизация
+
+### Added
+- **Импорт/экспорт проектов в файлы** (`src/services/projectTransfer.ts`, UI `ProjectFilesMenu`):
+  - импорт ZIP-архива, бандла ScriptVault (`.json`), JSON формата Apps Script API (`projects.getContent`, в том числе «голый» массив файлов), отдельных файлов `.gs`/`.js`/`.html`/`appsscript.json`;
+  - экспорт: ZIP-архив, lossless-бандл ScriptVault, JSON для Apps Script API, файлы по отдельности — из меню «Файлы» в шапке проекта;
+  - авто-добавление манифеста `appsscript.json` при импорте, отбрасывание дубликатов имён, лимиты (300 файлов, 8 МБ на файл, 32 МБ суммарно), понятные ошибки;
+  - кнопка импорта на стартовом экране (`ProjectEmptyState`);
+  - локальные проекты помечаются `origin: 'local'` и `1LOCAL_…` id; кнопка «привязать Script ID» (`BindScriptIdButton`) привязывает их к реальному проекту Google; пуш в Google и деплои для несвязанных проектов блокируются с объяснением.
+- `src/services/scriptFileNaming.ts` — единый маппинг имён/типов файлов (`.gs`/`.html`/`.json`) для импорта, ZIP и GitHub-пуша.
+- `src/services/projectOrigin.ts` — признаки `isLocalProject` / `isCloudBoundProject` / `isGoogleScriptId` вместо разрозненных `startsWith('1DEMO_')`.
+- `src/services/download.ts` — общий helper скачивания blob/текста.
+- `vitest.config.ts` включает `*.test.tsx`; добавлены компонентные тесты (клиентский рендер через `act`) на импорт и привязку Script ID.
+
+### Changed (производительность)
+- `extractFunctionsFromCode`: регулярные выражения компилируются один раз на уровне модуля (было — 4 `new RegExp` на каждую строку файла, то есть тысячи компиляций на нажатие клавиши) + ранний выход для файлов без функций.
+- `appStore.updateProject` больше не сериализует все проекты в `localStorage` на каждый символ: записи коалесцируются (`projectPersistence.ts`, окно 400 мс, флаш на `pagehide`/`beforeunload`/`visibilitychange`), структурные изменения пишутся сразу.
+- `CodeWorkspace`: diff проекта вынесен в `useMemo`, дочерние списки (`modifiedFileNames`/`addedFileNames`) получили стабильные ссылки, убрана недостижимая модалка запуска (~190 строк дублирующего UI).
+- `createCommit` считает diff один раз (было дважды) и клонирует файлы без `JSON.parse(JSON.stringify(...))`.
+- `GlobalSearchModal` ищет по отложенному запросу (`useDeferredValue`) — ввод не блокируется на больших проектах.
+- Удалён мёртвый код (`extractScriptFunctionNames`); экспорт ZIP/файлов переиспользует `projectToZipBlob` и `downloadSingleFile` вместо трёх копий одной логики.
+
+### Fixed
+- ZIP-архив и отдельные файлы экспортируются как `.gs` (а не `.js`) — согласовано с GitHub-пушем и Apps Script.
+- Скачивание: `URL.revokeObjectURL` вызывается асинхронно (синхронный отзыв мог отменять загрузку в Firefox/Safari).
+
 ## [Unreleased] — фиксы редактора, темы и запуска русских функций
 
 ### Fixed

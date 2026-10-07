@@ -9,6 +9,8 @@ export interface AppsScriptProject {
   title: string;
   parentId?: string; // e.g. Spreadsheet ID
   parentTitle?: string;
+  /** `cloud` — bound to a real Apps Script project; `local` — imported from files. */
+  origin?: 'cloud' | 'local';
   files: ScriptFile[];
   lastModified?: string;
   version?: number;

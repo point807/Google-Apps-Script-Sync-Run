@@ -11,6 +11,14 @@ import { syncCoordinator } from '../services/syncManager';
 import { loadToken, persistGitHubConfig } from '../services/tokenStore';
 import { createCommit } from '../services/gitService';
 import { mergeProjectFiles, SyncConflictInfo } from '../services/syncMerge';
+import {
+  bindPersistFlushListeners,
+  flushPersistProjects,
+  persistProjectsNow,
+  schedulePersistProjects
+} from '../services/projectPersistence';
+import { extractScriptId } from '../services/appsScriptService';
+import { isCloudBoundProject, isGoogleScriptId } from '../services/projectOrigin';
 
 export interface Toast {
   id: number;
@@ -93,6 +101,8 @@ interface AppStore {
   updateProject: (project: AppsScriptProject) => void;
   setActiveFileName: (name: string | null) => void;
   loadDemoProjects: () => void;
+  importProject: (project: AppsScriptProject) => { updated: boolean };
+  bindScriptId: (rawScriptId: string) => { ok: true } | { ok: false; error: string };
   restoreVersion: (files: ScriptFile[], commitMessage: string, deployRemotely?: boolean) => void;
   createInitialCommits: () => void;
 
@@ -133,19 +143,14 @@ export const useAppStore = create<AppStore>((set, get) => {
     }
   };
 
-  const persistProjects = (
-    allProjects: AppsScriptProject[],
-    currentProject: AppsScriptProject | null
-  ) => {
-    try {
-      localStorage.setItem('scriptvault_all_projects', JSON.stringify(allProjects));
-      if (currentProject) {
-        localStorage.setItem('scriptvault_current_project', JSON.stringify(currentProject));
-      }
-    } catch (e) {
-      console.warn('Failed to save projects', e);
-    }
-  };
+  /**
+   * Structural changes (import, project switch, rollback) write through at once;
+   * keystroke-level edits are coalesced — see services/projectPersistence.
+   */
+  const persistProjects = persistProjectsNow;
+  const persistProjectsSoon = schedulePersistProjects;
+
+  bindPersistFlushListeners();
 
   return {
     // --- auth ---
@@ -247,7 +252,8 @@ export const useAppStore = create<AppStore>((set, get) => {
       const nextProjects = allProjects.map((p) => (p.scriptId === project.scriptId ? project : p));
       const nextCurrent = currentProject?.scriptId === project.scriptId ? project : currentProject;
       set({ allProjects: nextProjects, currentProject: nextCurrent });
-      persistProjects(nextProjects, nextCurrent);
+      // Editor keystrokes land here: coalesce the localStorage write.
+      persistProjectsSoon(nextProjects, nextCurrent);
     },
 
     setActiveFileName: (name) => set({ activeFileName: name }),
@@ -266,6 +272,106 @@ export const useAppStore = create<AppStore>((set, get) => {
         'info',
         'git'
       );
+    },
+
+    importProject: (project) => {
+      const { allProjects, syncSettings } = get();
+      const existingIdx = allProjects.findIndex((p) => p.scriptId === project.scriptId);
+      const updated = existingIdx !== -1;
+
+      const nextProjects = updated
+        ? allProjects.map((p, i) => (i === existingIdx ? project : p))
+        : [project, ...allProjects];
+
+      const nextSettings = syncSettings.selectedScriptIds?.includes(project.scriptId)
+        ? syncSettings
+        : {
+            ...syncSettings,
+            selectedScriptIds: [...(syncSettings.selectedScriptIds || []), project.scriptId]
+          };
+
+      set({
+        allProjects: nextProjects,
+        currentProject: project,
+        syncSettings: nextSettings,
+        activeTab: 'workspace',
+        activeFileName: null
+      });
+      persistProjects(nextProjects, project);
+      if (nextSettings !== syncSettings) {
+        try {
+          localStorage.setItem('scriptvault_sync_settings', JSON.stringify(nextSettings));
+        } catch {
+          // ignore
+        }
+      }
+
+      void createCommit(
+        project.scriptId,
+        project.files,
+        `${updated ? 'Re-imported' : 'Imported'} ${project.title} (${project.files.length} files)`,
+        'ScriptVault',
+        'main',
+        { force: true }
+      );
+
+      get().addLog(
+        `${updated ? 'Обновлён' : 'Импортирован'} проект "${project.title}" (${project.files.length} файлов, origin: ${project.origin || 'cloud'})`,
+        'success',
+        'git'
+      );
+
+      return { updated };
+    },
+
+    bindScriptId: (rawScriptId) => {
+      const { currentProject, allProjects, syncSettings } = get();
+      if (!currentProject) return { ok: false as const, error: 'Проект не выбран.' };
+
+      const scriptId = extractScriptId(rawScriptId);
+      if (!isGoogleScriptId(scriptId) || !isCloudBoundProject({ scriptId, origin: 'cloud' })) {
+        return {
+          ok: false as const,
+          error:
+            'Некорректный Script ID. Вставьте ссылку на редактор Apps Script или сам ID ' +
+            '(например, 1aB2cD3eF4...).'
+        };
+      }
+
+      const previousId = currentProject.scriptId;
+      const bound: AppsScriptProject = {
+        ...currentProject,
+        scriptId,
+        origin: 'cloud',
+        lastModified: new Date().toISOString()
+      };
+
+      const nextProjects = allProjects.map((p) => (p.scriptId === previousId ? bound : p));
+      const nextSettings = {
+        ...syncSettings,
+        selectedScriptIds: Array.from(
+          new Set(
+            (syncSettings.selectedScriptIds || []).map((id) =>
+              id === previousId ? scriptId : id
+            )
+          )
+        )
+      };
+
+      set({ allProjects: nextProjects, currentProject: bound, syncSettings: nextSettings });
+      persistProjects(nextProjects, bound);
+      try {
+        localStorage.setItem('scriptvault_sync_settings', JSON.stringify(nextSettings));
+      } catch {
+        // ignore
+      }
+
+      get().addLog(
+        `Проект "${bound.title}" привязан к Google Apps Script (Script ID: ${scriptId})`,
+        'success',
+        'apps_script'
+      );
+      return { ok: true as const };
     },
 
     restoreVersion: (files, commitMessage, deployRemotely = false) => {
@@ -356,7 +462,10 @@ export const useAppStore = create<AppStore>((set, get) => {
         details
       });
     },
-    clearLogs: () => set({ logs: [] }),
+    clearLogs: () => {
+      flushPersistProjects();
+      set({ logs: [] });
+    },
 
     isSyncing: false,
     lastSyncedAt: null,

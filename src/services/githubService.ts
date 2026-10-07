@@ -1,5 +1,6 @@
 import { apiFetch } from './http';
 import { ScriptFile } from '../types';
+import { fileNameWithExtension } from './scriptFileNaming';
 
 export interface GitHubUser {
   login: string;
@@ -276,11 +277,7 @@ export const pushFilesToGitHub = async (
 
   // 3. Build tree payload
   const treeNodes = files.map((file) => {
-    let ext = '.gs';
-    if (file.type === 'HTML') ext = '.html';
-    else if (file.type === 'JSON' || file.name === 'appsscript') ext = '.json';
-
-    const fileName = file.name.endsWith(ext) ? file.name : `${file.name}${ext}`;
+    const fileName = fileNameWithExtension(file);
     const filePath = cleanPath ? `${cleanPath}/${fileName}` : fileName;
 
     return {
