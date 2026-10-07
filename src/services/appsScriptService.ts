@@ -1,4 +1,5 @@
 import { apiFetch } from './http';
+import LocalRunnerWorker from './localRunnerWorker?worker';
 import JSZip from 'jszip';
 import { AppsScriptProject, ScriptFile } from '../types';
 
@@ -398,6 +399,190 @@ export const extractScriptFunctionNames = (files: ScriptFile[]): string[] => {
   return Array.from(new Set(funcs.map((f) => f.name)));
 };
 
+export interface ScriptVersion {
+  versionNumber: number;
+  description?: string;
+  createTime?: string;
+}
+
+export interface ScriptDeploymentEntryPoint {
+  entryPointType?: string;
+  executionApi?: { entryPointConfig?: { access?: string } };
+  webApp?: { url?: string };
+}
+
+export interface ScriptDeployment {
+  deploymentId: string;
+  deploymentConfig?: {
+    versionNumber?: number;
+    description?: string;
+    manifestFileName?: string;
+  };
+  updateTime?: string;
+  entryPoints?: ScriptDeploymentEntryPoint[];
+}
+
+export const listVersions = async (
+  accessToken: string,
+  scriptId: string
+): Promise<ScriptVersion[]> => {
+  const res = await apiFetch(
+    `${SCRIPT_API_BASE}/projects/${extractScriptId(scriptId)}/versions?pageSize=50`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Не удалось получить список версий: ${res.status} ${err}`);
+  }
+  const data = await res.json();
+  return (data.versions || []) as ScriptVersion[];
+};
+
+export const createVersion = async (
+  accessToken: string,
+  scriptId: string,
+  description: string
+): Promise<ScriptVersion> => {
+  const res = await apiFetch(`${SCRIPT_API_BASE}/projects/${extractScriptId(scriptId)}/versions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ description })
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Не удалось создать версию: ${res.status} ${err}`);
+  }
+  return (await res.json()) as ScriptVersion;
+};
+
+export const listDeployments = async (
+  accessToken: string,
+  scriptId: string
+): Promise<ScriptDeployment[]> => {
+  const res = await apiFetch(
+    `${SCRIPT_API_BASE}/projects/${extractScriptId(scriptId)}/deployments?pageSize=50`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Не удалось получить список деплоев: ${res.status} ${err}`);
+  }
+  const data = await res.json();
+  return (data.deployments || []) as ScriptDeployment[];
+};
+
+export const createDeployment = async (
+  accessToken: string,
+  scriptId: string,
+  description: string,
+  versionNumber?: number
+): Promise<ScriptDeployment> => {
+  const body: Record<string, unknown> = {
+    description,
+    manifestFileName: 'appsscript'
+  };
+  if (versionNumber) body.versionNumber = versionNumber;
+  const res = await apiFetch(
+    `${SCRIPT_API_BASE}/projects/${extractScriptId(scriptId)}/deployments`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    }
+  );
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Не удалось создать деплой: ${res.status} ${err}`);
+  }
+  return (await res.json()) as ScriptDeployment;
+};
+
+export const updateDeploymentVersion = async (
+  accessToken: string,
+  scriptId: string,
+  deploymentId: string,
+  versionNumber: number
+): Promise<ScriptDeployment> => {
+  const res = await apiFetch(
+    `${SCRIPT_API_BASE}/projects/${extractScriptId(scriptId)}/deployments/${deploymentId}`,
+    {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        deploymentConfig: {
+          versionNumber,
+          manifestFileName: 'appsscript'
+        },
+        updateMask: 'deploymentConfig.versionNumber'
+      })
+    }
+  );
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Не удалось обновить деплой: ${res.status} ${err}`);
+  }
+  return (await res.json()) as ScriptDeployment;
+};
+
+/** True when the deployment exposes an EXECUTION_API entry point (scripts.run). */
+export const isApiExecutable = (deployment: ScriptDeployment): boolean =>
+  (deployment.entryPoints || []).some((e) => e.entryPointType === 'EXECUTION_API');
+
+interface LocalRunnerResponse {
+  status: 'success' | 'error';
+  result?: unknown;
+  logs: string[];
+  error?: string;
+}
+
+const LOCAL_RUNNER_TIMEOUT_MS = 15000;
+
+/** Runs user code in a dedicated worker (sandbox: no DOM/window). */
+const runInLocalWorker = (
+  code: string,
+  functionName: string,
+  parameters: unknown[]
+): Promise<LocalRunnerResponse> =>
+  new Promise((resolve) => {
+    let worker: Worker | null = null;
+    const finish = (response: LocalRunnerResponse) => {
+      clearTimeout(timer);
+      worker?.terminate();
+      resolve(response);
+    };
+    const timer = setTimeout(
+      () =>
+        finish({
+          status: 'error',
+          logs: [],
+          error: 'Локальный запуск превысил лимит времени (15 с)'
+        }),
+      LOCAL_RUNNER_TIMEOUT_MS
+    );
+    try {
+      worker = new LocalRunnerWorker();
+      worker.onmessage = (e: MessageEvent<LocalRunnerResponse>) => finish(e.data);
+      worker.onerror = (e) =>
+        finish({
+          status: 'error',
+          logs: [],
+          error: `Ошибка локального runner: ${e.message || 'unknown'}`
+        });
+      worker.postMessage({ code, functionName, parameters });
+    } catch (err: any) {
+      finish({ status: 'error', logs: [], error: err?.message || String(err) });
+    }
+  });
+
 export const runAppsScriptFunction = async (
   scriptId: string,
   functionName: string,
@@ -406,7 +591,6 @@ export const runAppsScriptFunction = async (
   files?: ScriptFile[]
 ): Promise<FunctionRunResult> => {
   const startTime = Date.now();
-  const capturedLogs: string[] = [];
 
   // 1. Try Google Apps Script API (scripts.run) if accessToken is provided
   if (accessToken && scriptId && scriptId.length > 10) {
@@ -453,108 +637,34 @@ export const runAppsScriptFunction = async (
     }
   }
 
-  // 2. Intelligent in-browser Apps Script Simulator / Local Runner
+  // 2. Sandboxed in-browser runner (Web Worker — no DOM/window access)
   try {
     const jsFiles = (files || []).filter(
       (f) => f.type === 'SERVER_JS' || !f.type || f.name.endsWith('.gs') || f.name.endsWith('.js')
     );
     const combinedCode = jsFiles.map((f) => f.source || '').join('\n\n');
 
-    const mockLogger = {
-      log: (...args: any[]) => {
-        const text = args
-          .map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a)))
-          .join(' ');
-        capturedLogs.push(`[Logger.log] ${text}`);
-      }
-    };
-
-    const mockSpreadsheetApp = {
-      getActiveSpreadsheet: () => mockSpreadsheetApp,
-      getActiveSheet: () => mockSpreadsheetApp,
-      getName: () => 'Лист1',
-      getDataRange: () => mockSpreadsheetApp,
-      getValues: () => [
-        ['A', 'B', 'C'],
-        [1, 'Тест', 100],
-        [2, 'Данные', 200]
-      ],
-      appendRow: (row: any[]) => {
-        capturedLogs.push(`[SpreadsheetApp.appendRow] ${JSON.stringify(row)}`);
-      },
-      getRange: () => ({
-        setValue: (val: any) => capturedLogs.push(`[Range.setValue] ${val}`),
-        setValues: (vals: any) => capturedLogs.push(`[Range.setValues] ${JSON.stringify(vals)}`),
-        getValue: () => 'Значение',
-        getValues: () => [['Значение']]
-      }),
-      getUi: () => ({
-        alert: (msg: string) => capturedLogs.push(`[UI.alert] ${msg}`),
-        createMenu: (name: string) => ({
-          addItem: () => ({ addSeparator: () => ({ addToUi: () => {} }), addToUi: () => {} }),
-          addSeparator: () => ({ addItem: () => ({ addToUi: () => {} }), addToUi: () => {} }),
-          addToUi: () => capturedLogs.push(`[UI.createMenu] Меню: "${name}"`)
-        })
-      })
-    };
-
-    const mockUtilities = {
-      formatDate: (date: Date) => date.toLocaleString(),
-      sleep: () => {},
-      base64Encode: (str: string) => btoa(str),
-      base64Decode: (str: string) => atob(str)
-    };
-
-    const mockSession = {
-      getActiveUser: () => ({ getEmail: () => 'user@gmail.com' }),
-      getEffectiveUser: () => ({ getEmail: () => 'user@gmail.com' })
-    };
-
-    const mockMailApp = {
-      sendEmail: (opts: any) => {
-        capturedLogs.push(`[MailApp.sendEmail] Кому: ${opts.to}, Тема: ${opts.subject}`);
-      }
-    };
-
-    const mockUrlFetchApp = {
-      fetch: () => ({
-        getResponseCode: () => 200,
-        getContentText: () => '{"status":"ok"}'
-      })
-    };
-
-    const runner = new Function(
-      'Logger',
-      'SpreadsheetApp',
-      'Utilities',
-      'Session',
-      'MailApp',
-      'UrlFetchApp',
-      `
-        ${combinedCode}
-        if (typeof ${functionName} !== 'function') {
-          throw new Error('Функция "' + '${functionName}' + '" не найдена в коде проекта.');
-        }
-        return ${functionName}();
-      `
-    );
-
-    const res = runner(
-      mockLogger,
-      mockSpreadsheetApp,
-      mockUtilities,
-      mockSession,
-      mockMailApp,
-      mockUrlFetchApp
-    );
-
+    const workerResult = await runInLocalWorker(combinedCode, functionName, parameters);
     const duration = Date.now() - startTime;
+
+    if (workerResult.status === 'error') {
+      return {
+        status: 'error',
+        logs: workerResult.logs,
+        durationMs: duration,
+        error: workerResult.error || 'Ошибка локального runner',
+        source: 'local_runner'
+      };
+    }
     return {
       status: 'success',
-      result: res !== undefined ? res : 'undefined (выполнено без return)',
+      result:
+        workerResult.result !== undefined
+          ? workerResult.result
+          : 'undefined (выполнено без return)',
       logs:
-        capturedLogs.length > 0
-          ? capturedLogs
+        workerResult.logs.length > 0
+          ? workerResult.logs
           : [`Функция ${functionName}() выполнена без вызовов Logger.log`],
       durationMs: duration,
       source: 'local_runner'
@@ -563,7 +673,7 @@ export const runAppsScriptFunction = async (
     const duration = Date.now() - startTime;
     return {
       status: 'error',
-      logs: capturedLogs,
+      logs: [],
       durationMs: duration,
       error: err.message || String(err),
       source: 'local_runner'

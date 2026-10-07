@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import React from 'react';
-import { RefreshCw, Play, Terminal } from 'lucide-react';
+import { RefreshCw, Play, Terminal, Rocket } from 'lucide-react';
 import { ScriptFile } from '../types';
 import { FunctionRunResult, ScriptFunctionInfo } from '../services/appsScriptService';
 
@@ -18,6 +18,7 @@ export interface RunToolbarProps {
   runResult: FunctionRunResult | null;
   showRunConsole: boolean;
   onToggleConsole: () => void;
+  onOpenDeployments: () => void;
 }
 
 /** Editor subheader: active file context, function selector, run button, console toggle. */
@@ -31,7 +32,8 @@ export const RunToolbar: React.FC<RunToolbarProps> = ({
   onExecute,
   runResult,
   showRunConsole,
-  onToggleConsole
+  onToggleConsole,
+  onOpenDeployments
 }) => {
   return (
     <div className="bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
@@ -96,6 +98,16 @@ export const RunToolbar: React.FC<RunToolbarProps> = ({
             />
           )}
         </div>
+
+        <button
+          type="button"
+          onClick={onOpenDeployments}
+          className="px-2.5 py-1.5 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition flex items-center gap-1.5 cursor-pointer"
+          title="Версии и деплои (для облачного запуска)"
+        >
+          <Rocket className="w-3.5 h-3.5" />
+          <span>Деплой</span>
+        </button>
 
         {/* Run Button in Editor! */}
         <button

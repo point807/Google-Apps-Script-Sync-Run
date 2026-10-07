@@ -4,6 +4,7 @@ import { RunToolbar } from './RunToolbar';
 import { ExecutionConsole } from './ExecutionConsole';
 import { ProjectToolbar } from './ProjectToolbar';
 import { FileTabs } from './FileTabs';
+import { DeploymentManager } from './DeploymentManager';
 import {
   Code2,
   FileCode,
@@ -48,6 +49,7 @@ export const CodeWorkspace: React.FC = () => {
   const onCommitCreated = () => addLog('Коммит зафиксирован вручную', 'success', 'git');
   const [selectedFileIndex, setSelectedFileIndex] = useState(0);
   const [showAddFileModal, setShowAddFileModal] = useState(false);
+  const [showDeployments, setShowDeployments] = useState(false);
   const [newFileName, setNewFileName] = useState('');
   const [newFileType, setNewFileType] = useState<'SERVER_JS' | 'HTML'>('SERVER_JS');
 
@@ -477,6 +479,7 @@ export const CodeWorkspace: React.FC = () => {
           runResult={runResult}
           showRunConsole={showRunConsole}
           onToggleConsole={() => setShowRunConsole(!showRunConsole)}
+          onOpenDeployments={() => setShowDeployments(true)}
         />
 
         {/* Editor Area */}
@@ -1105,6 +1108,8 @@ export const CodeWorkspace: React.FC = () => {
           </div>
         </div>
       )}
+
+      <DeploymentManager open={showDeployments} onClose={() => setShowDeployments(false)} />
     </div>
   );
 };

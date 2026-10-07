@@ -9,6 +9,31 @@ export type Lang = 'ru' | 'en';
 /** Central translation catalog, one namespace per UI area. */
 export const messages = {
   ru: {
+    deploy: {
+      title: 'Версии и деплои Google Apps Script',
+      desc: 'Облачный запуск функций (scripts.run) работает только с деплоем типа API executable. Создайте версию и деплой ниже — после этого кнопка «Запустить» будет выполнять код в Google, а не в браузере.',
+      close: 'Закрыть',
+      refresh: 'Обновить',
+      manifestTitle: 'Манифест (appsscript.json)',
+      manifestBtn: 'Добавить executionApi',
+      manifestHint:
+        'API executable деплой создается, если в манифесте есть блок executionApi. Кнопка добавит "executionApi": {"access": "MYSELF"} в файл appsscript и сохранит проект.',
+      versionsTitle: 'Версии',
+      versionDescPlaceholder: 'Описание версии (необязательно)',
+      createVersionBtn: 'Создать версию',
+      noVersions: 'Версий пока нет. Версия фиксирует текущее состояние кода.',
+      deploymentsTitle: 'Деплои',
+      deploymentDescPlaceholder: 'Описание деплоя (необязательно)',
+      headOption: 'Текущий код (head)',
+      createDeploymentBtn: 'Создать деплой',
+      noDeployments: 'Деплоев пока нет.',
+      untitledDeployment: 'Без названия',
+      apiExecutable: 'API executable',
+      notExecutable: 'не API executable',
+      versionLabel: 'версия…',
+      updateBtn: 'Обновить',
+      updated: 'Обновлён'
+    },
     conflict: {
       title: 'Конфликт синхронизации',
       desc: 'Файлы ниже изменены и локально, и в Google Apps Script. Выберите, какие версии оставить, — остальные файлы объединяются автоматически. Проект:',
@@ -218,6 +243,31 @@ export const messages = {
     }
   },
   en: {
+    deploy: {
+      title: 'Google Apps Script versions & deployments',
+      desc: 'Cloud function runs (scripts.run) only work with an API-executable deployment. Create a version and deployment below — then the Run button executes code in Google, not in the browser.',
+      close: 'Close',
+      refresh: 'Refresh',
+      manifestTitle: 'Manifest (appsscript.json)',
+      manifestBtn: 'Add executionApi',
+      manifestHint:
+        'An API-executable deployment requires the executionApi block in the manifest. The button adds "executionApi": {"access": "MYSELF"} to the appsscript file and saves the project.',
+      versionsTitle: 'Versions',
+      versionDescPlaceholder: 'Version description (optional)',
+      createVersionBtn: 'Create version',
+      noVersions: 'No versions yet. A version snapshots the current code state.',
+      deploymentsTitle: 'Deployments',
+      deploymentDescPlaceholder: 'Deployment description (optional)',
+      headOption: 'Current code (head)',
+      createDeploymentBtn: 'Create deployment',
+      noDeployments: 'No deployments yet.',
+      untitledDeployment: 'Untitled',
+      apiExecutable: 'API executable',
+      notExecutable: 'not API executable',
+      versionLabel: 'version…',
+      updateBtn: 'Update',
+      updated: 'Updated'
+    },
     conflict: {
       title: 'Sync conflict',
       desc: 'The files below were changed both locally and in Google Apps Script. Choose which versions to keep — everything else is merged automatically. Project:',

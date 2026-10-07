@@ -39,14 +39,17 @@ export const auth = getAuth(app);
 // - drive.scripts    → manage standalone Apps Script project files stored on Drive;
 // - spreadsheets     → read spreadsheet metadata when binding scripts to Sheets;
 // - script.projects  → read/write Apps Script project content and run functions
-//                      (Google Apps Script API).
+//                      (Google Apps Script API);
+// - script.deployments → create versions and deployments (scripts.run requires
+//                      an API-executable deployment).
 // Narrowing these (e.g. to drive.file) would break listing and copying files the
 // app did not create — revisit if the feature set changes.
 export const SCOPES = [
   'https://www.googleapis.com/auth/drive',
   'https://www.googleapis.com/auth/drive.scripts',
   'https://www.googleapis.com/auth/spreadsheets',
-  'https://www.googleapis.com/auth/script.projects'
+  'https://www.googleapis.com/auth/script.projects',
+  'https://www.googleapis.com/auth/script.deployments'
 ];
 
 const provider = new GoogleAuthProvider();
