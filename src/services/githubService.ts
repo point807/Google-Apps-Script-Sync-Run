@@ -372,3 +372,43 @@ export const fetchRemoteCommits = async (
     html_url: c.html_url
   }));
 };
+
+export interface PullRequestResult {
+  number: number;
+  html_url: string;
+  title: string;
+}
+
+export const createPullRequest = async (
+  token: string,
+  owner: string,
+  repo: string,
+  headBranch: string,
+  baseBranch: string,
+  title: string,
+  body: string = ''
+): Promise<PullRequestResult> => {
+  const headers = getHeaders(token);
+  const res = await apiFetch(`${GITHUB_API}/repos/${owner}/${repo}/pulls`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      title,
+      head: headBranch,
+      base: baseBranch,
+      body
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(`Failed to create pull request: ${err.message || res.statusText}`);
+  }
+
+  const data = await res.json();
+  return {
+    number: data.number,
+    html_url: data.html_url,
+    title: data.title
+  };
+};

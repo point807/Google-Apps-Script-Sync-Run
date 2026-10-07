@@ -9,7 +9,8 @@ import {
   ExternalLink,
   Plus,
   RefreshCw,
-  HelpCircle
+  HelpCircle,
+  GitPullRequest
 } from 'lucide-react';
 import { clearToken, isRemembered, maskToken, saveToken } from '../services/tokenStore';
 import {
@@ -17,6 +18,8 @@ import {
   listRepositories,
   createRepository,
   pushFilesToGitHub,
+  createBranch,
+  createPullRequest,
   GitHubUser,
   GitHubRepo
 } from '../services/githubService';
@@ -52,6 +55,13 @@ export const GitHubPanel: React.FC = () => {
   const [isPrivate, setIsPrivate] = useState(true);
   const [creatingRepo, setCreatingRepo] = useState(false);
 
+  // Pull Request modal
+  const [showPRModal, setShowPRModal] = useState(false);
+  const [prBranchName, setPrBranchName] = useState('');
+  const [prTitle, setPrTitle] = useState('');
+  const [prBaseBranch, setPrBaseBranch] = useState('main');
+  const [creatingPR, setCreatingPR] = useState(false);
+
   const t = useT('github');
 
   // Validate token on mount if present
@@ -60,6 +70,19 @@ export const GitHubPanel: React.FC = () => {
       handleValidate(gitHubConfig.token, false);
     }
   }, [gitHubConfig.token]);
+
+  // Initialize PR defaults when opening modal or project changes
+  useEffect(() => {
+    if (project && showPRModal && !prBranchName) {
+      const safeTitle = project.title.replace(/[^a-zA-Z0-9-_]/g, '-').slice(0, 30);
+      const ts = new Date().toISOString().slice(0, 10);
+      setPrBranchName(`scriptvault/${safeTitle}-${ts}`);
+      setPrTitle(`Update ${project.title} (${project.parentTitle || 'Apps Script'})`);
+    }
+    if (repoDefaultBranch && prBaseBranch === 'main') {
+      setPrBaseBranch(repoDefaultBranch);
+    }
+  }, [project, showPRModal, prBranchName, repoDefaultBranch, prBaseBranch]);
 
   async function handleValidate(token: string, logSuccess = true) {
     if (!token.trim()) return;
@@ -161,6 +184,63 @@ export const GitHubPanel: React.FC = () => {
       alert(`Ошибка: ${err.message}`);
     } finally {
       setPushing(false);
+    }
+  };
+
+  const handleCreatePullRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!project) return;
+    if (!gitHubConfig.token || !gitHubConfig.owner || !gitHubConfig.repo) return;
+    if (!prBranchName.trim() || !prTitle.trim()) return;
+
+    setCreatingPR(true);
+    try {
+      const base = prBaseBranch || repoDefaultBranch || 'main';
+      const newBranch = prBranchName.trim();
+      onLog(`Создание ветки "${newBranch}" от "${base}"...`, 'info');
+      try {
+        await createBranch(gitHubConfig.token, gitHubConfig.owner, gitHubConfig.repo, newBranch, base);
+      } catch (branchErr: any) {
+        // If branch already exists, continue — we will push to it
+        if (!String(branchErr.message).toLowerCase().includes('already exists')) {
+          // try to continue anyway if error is about existence
+          onLog(`Ветка ${newBranch} уже существует или ошибка создания: ${branchErr.message}`, 'warning');
+        }
+      }
+
+      onLog(`Отправка файлов проекта в ветку "${newBranch}"...`, 'info');
+      await pushFilesToGitHub(
+        gitHubConfig.token,
+        gitHubConfig.owner,
+        gitHubConfig.repo,
+        newBranch,
+        project.files,
+        `${prTitle} [ScriptVault]`,
+        gitHubConfig.path || ''
+      );
+
+      onLog(`Создание Pull Request "${prTitle}" (${newBranch} → ${base})...`, 'info');
+      const pr = await createPullRequest(
+        gitHubConfig.token,
+        gitHubConfig.owner,
+        gitHubConfig.repo,
+        newBranch,
+        base,
+        prTitle,
+        `Автоматически создан из ScriptVault для проекта "${project.title}"${project.parentTitle ? ` (таблица: ${project.parentTitle})` : ''}.\n\nСодержит ${project.files.length} файлов.`
+      );
+
+      onLog(`Pull Request #${pr.number} создан: ${pr.html_url}`, 'success');
+      setCommitsRefreshKey((k) => k + 1);
+      setShowPRModal(false);
+      setPrBranchName('');
+      setPrTitle('');
+      alert(`Pull Request успешно создан!\n#${pr.number}: ${pr.title}\n${pr.html_url}`);
+    } catch (err: any) {
+      onLog(`Ошибка создания PR: ${err.message}`, 'error');
+      alert(`Ошибка: ${err.message}`);
+    } finally {
+      setCreatingPR(false);
     }
   };
 
@@ -464,8 +544,26 @@ export const GitHubPanel: React.FC = () => {
               </label>
             </div>
 
-            {/* Manual Push Button */}
-            <div className="flex items-center justify-end">
+            {/* Manual Push Buttons */}
+            <div className="flex items-center justify-end gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  const safeTitle = project
+                    ? project.title.replace(/[^a-zA-Z0-9-_]/g, '-').slice(0, 30)
+                    : 'script';
+                  const ts = new Date().toISOString().slice(0, 10);
+                  setPrBranchName(`scriptvault/${safeTitle}-${ts}`);
+                  setPrTitle(project ? `Update ${project.title}` : 'Update from ScriptVault');
+                  setShowPRModal(true);
+                }}
+                disabled={!gitHubConfig.repo || !project}
+                className="px-4 py-2.5 text-xs font-semibold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 rounded-xl transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <GitPullRequest className="w-4 h-4" />
+                <span>Создать Pull Request</span>
+              </button>
+
               <button
                 type="button"
                 onClick={handlePushCurrentCode}
@@ -535,6 +633,87 @@ export const GitHubPanel: React.FC = () => {
                   className="px-4 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition cursor-pointer disabled:opacity-50"
                 >
                   {creatingRepo ? 'Создание...' : t.createBtn}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Create Pull Request */}
+      {showPRModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl text-slate-200 space-y-4">
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <GitPullRequest className="w-5 h-5 text-indigo-400" />
+              <span>Создание Pull Request</span>
+            </h3>
+
+            <form onSubmit={handleCreatePullRequest} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Базовая ветка (base)</label>
+                <input
+                  type="text"
+                  value={prBaseBranch}
+                  onChange={(e) => setPrBaseBranch(e.target.value)}
+                  placeholder="main"
+                  className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Новая ветка (head)</label>
+                <input
+                  type="text"
+                  value={prBranchName}
+                  onChange={(e) => setPrBranchName(e.target.value)}
+                  placeholder="scriptvault/my-feature-2026-01-01"
+                  className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Заголовок PR</label>
+                <input
+                  type="text"
+                  value={prTitle}
+                  onChange={(e) => setPrTitle(e.target.value)}
+                  placeholder="Update MyProject"
+                  className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="text-[11px] text-slate-500 leading-relaxed">
+                Создаётся новая ветка от <span className="font-mono text-slate-300">{prBaseBranch}</span>, в неё
+                пушатся текущие файлы проекта, затем открывается PR{' '}
+                <span className="font-mono text-slate-300">
+                  {prBranchName || '...'} → {prBaseBranch}
+                </span>
+                .
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPRModal(false)}
+                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-white transition cursor-pointer"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingPR || !prBranchName.trim() || !prTitle.trim()}
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {creatingPR ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Создание...
+                    </>
+                  ) : (
+                    <>
+                      <GitPullRequest className="w-3.5 h-3.5" /> Создать PR
+                    </>
+                  )}
                 </button>
               </div>
             </form>
