@@ -2,15 +2,9 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-
-import React, { useState, useEffect } from 'react';
-import { User } from 'firebase/auth';
-import { AppsScriptProject, GitHubConfig, ScriptFile, SyncLogEntry, SyncSettings } from './types';
-import { initAuth, googleSignIn, logout } from './services/firebaseAuth';
-import { SAMPLE_SHEETS_SCRIPTS } from './services/sampleScripts';
+import React, { useEffect } from 'react';
 import { syncCoordinator } from './services/syncManager';
-import { loadToken, persistGitHubConfig } from './services/tokenStore';
-import { createCommit } from './services/gitService';
+import { useAppStore } from './store/appStore';
 import { Navbar } from './components/Navbar';
 import { SpreadsheetPicker } from './components/SpreadsheetPicker';
 import { CodeWorkspace } from './components/CodeWorkspace';
@@ -20,448 +14,65 @@ import { BackupDrivePanel } from './components/BackupDrivePanel';
 import { ActivityLog } from './components/ActivityLog';
 import { ProjectEmptyState } from './components/ProjectEmptyState';
 
-const DEFAULT_SYNC_SETTINGS: SyncSettings = {
-  autoSyncEnabled: false,
-  intervalSeconds: 30,
-  backupToDrive: true,
-  backupToGitHub: true,
-  backupFolderName: 'ScriptVault_Backups',
-  backupSpreadsheetCopies: true,
-  selectedScriptIds: []
-};
-
-const DEFAULT_GITHUB_CONFIG: GitHubConfig = {
-  token: '',
-  owner: '',
-  repo: '',
-  branch: 'main',
-  path: '',
-  autoPush: true,
-  connected: false
-};
-
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [lang, setLang] = useState<'ru' | 'en'>('ru');
-  const [activeTab, setActiveTab] = useState<
-    'workspace' | 'sheets' | 'git' | 'github' | 'drive' | 'logs'
-  >('workspace');
+  const activeTab = useAppStore((s) => s.activeTab);
+  const currentProject = useAppStore((s) => s.currentProject);
 
-  // List of all registered projects in the app
-  const [allProjects, setAllProjects] = useState<AppsScriptProject[]>(() => {
-    try {
-      const saved = localStorage.getItem('scriptvault_all_projects');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.warn('Could not parse all_projects', e);
-    }
-    return [];
-  });
+  // slices that drive the auto-sync watcher (mirrors the former effect deps)
+  const autoSyncEnabled = useAppStore((s) => s.syncSettings.autoSyncEnabled);
+  const intervalSeconds = useAppStore((s) => s.syncSettings.intervalSeconds);
+  const backupToDrive = useAppStore((s) => s.syncSettings.backupToDrive);
+  const backupToGitHub = useAppStore((s) => s.syncSettings.backupToGitHub);
+  const backupFolderId = useAppStore((s) => s.syncSettings.backupFolderId);
+  const backupFolderName = useAppStore((s) => s.syncSettings.backupFolderName);
+  const selectedScriptIds = useAppStore((s) => s.syncSettings.selectedScriptIds);
+  const projectsCount = useAppStore((s) => s.allProjects.length);
+  const accessToken = useAppStore((s) => s.accessToken);
+  const ghConnected = useAppStore((s) => s.gitHubConfig.connected);
+  const ghAutoPush = useAppStore((s) => s.gitHubConfig.autoPush);
 
-  // Currently active project in workspace (null until a project is connected or demo is loaded)
-  const [currentProject, setCurrentProject] = useState<AppsScriptProject | null>(() => {
-    try {
-      const saved = localStorage.getItem('scriptvault_current_project');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.warn('Could not parse saved current project', e);
-    }
-    return null;
-  });
-
-  // Settings
-  const [syncSettings, setSyncSettings] = useState<SyncSettings>(() => {
-    try {
-      const saved = localStorage.getItem('scriptvault_sync_settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (!parsed.selectedScriptIds) {
-          parsed.selectedScriptIds = [];
-        }
-        return parsed;
-      }
-    } catch (e) {
-      // ignore
-    }
-    return DEFAULT_SYNC_SETTINGS;
-  });
-
-  // GitHub Config (token itself is stored separately by tokenStore — never in this key)
-  const [gitHubConfig, setGitHubConfig] = useState<GitHubConfig>(() => {
-    let base = DEFAULT_GITHUB_CONFIG;
-    try {
-      const saved = localStorage.getItem('scriptvault_gh_config');
-      if (saved) base = { ...DEFAULT_GITHUB_CONFIG, ...JSON.parse(saved) };
-    } catch (e) {
-      // ignore
-    }
-    const storedToken = loadToken();
-    return storedToken ? { ...base, token: storedToken.token } : base;
-  });
-
-  // Logs
-  const [logs, setLogs] = useState<SyncLogEntry[]>([]);
-
-  // Sync watcher state
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
-  const [countdown, setCountdown] = useState<number>(30);
-  const [activeScriptsCount, setActiveScriptsCount] = useState<number>(
-    () => syncSettings.selectedScriptIds?.length || allProjects.length
-  );
-
-  const addLog = (
-    message: string,
-    type: 'info' | 'success' | 'warning' | 'error' = 'info',
-    category: 'drive' | 'github' | 'git' | 'apps_script' | 'realtime' = 'realtime',
-    details?: string
-  ) => {
-    const entry: SyncLogEntry = {
-      id: Math.random().toString(36).substring(2, 9),
-      timestamp: Date.now(),
-      type,
-      category,
-      message,
-      details
-    };
-    setLogs((prev) => [entry, ...prev.slice(0, 200)]);
-  };
-
-  // 1. Initialize Auth on Mount
+  // auth listener + sync coordinator wiring (once)
   useEffect(() => {
-    const unsubscribe = initAuth(
-      (authUser, token) => {
-        setUser(authUser);
-        setAccessToken(token);
-        addLog(`Вход в Google выполнен: ${authUser.email}`, 'success', 'drive');
-      },
-      () => {
-        setUser(null);
-        setAccessToken(null);
-      }
-    );
-
-    // Initial git commit for current project if empty
-    allProjects.forEach((proj) => {
-      void createCommit(
-        proj.scriptId,
-        proj.files,
-        `Initial snapshot of ${proj.title}`,
-        'ScriptVault System',
-        'main'
-      );
-    });
-
-    return () => unsubscribe();
+    const { initAuthListener, createInitialCommits, initSyncCoordinator } = useAppStore.getState();
+    const unsubscribe = initAuthListener();
+    createInitialCommits();
+    initSyncCoordinator();
+    return unsubscribe;
   }, []);
 
-  // 2. Setup sync coordinator listeners
+  // start/stop auto-sync watcher
   useEffect(() => {
-    syncCoordinator.setupListeners(
-      (entry) => {
-        setLogs((prev) => [entry, ...prev.slice(0, 200)]);
-      },
-      (status) => {
-        setIsSyncing(status.isSyncing);
-        if (status.lastSyncedAt) setLastSyncedAt(status.lastSyncedAt);
-        setCountdown(status.countdown);
-        if (status.activeScriptsCount !== undefined) {
-          setActiveScriptsCount(status.activeScriptsCount);
-        }
-      },
-      (updatedProject) => {
-        setAllProjects((prev) => {
-          const idx = prev.findIndex((p) => p.scriptId === updatedProject.scriptId);
-          if (idx !== -1) {
-            const next = [...prev];
-            next[idx] = updatedProject;
-            return next;
-          }
-          return [updatedProject, ...prev];
-        });
-
-        if (updatedProject.scriptId === currentProject?.scriptId) {
-          setCurrentProject(updatedProject);
-        }
-      }
-    );
-  }, [currentProject?.scriptId]);
-
-  // 3. Start or update auto-sync watcher with multi-script support
-  useEffect(() => {
-    if (syncSettings.autoSyncEnabled) {
-      syncCoordinator.startAutoSync(allProjects, accessToken, syncSettings, gitHubConfig);
-    } else {
-      syncCoordinator.stopAutoSync();
-    }
-
-    return () => {
-      syncCoordinator.stopAutoSync();
-    };
+    useAppStore.getState().applyAutoSync();
+    return () => syncCoordinator.stopAutoSync();
   }, [
-    allProjects.length,
+    projectsCount,
     accessToken,
-    syncSettings.autoSyncEnabled,
-    syncSettings.intervalSeconds,
-    syncSettings.backupToDrive,
-    syncSettings.backupToGitHub,
-    syncSettings.backupFolderId,
-    syncSettings.backupFolderName,
-    syncSettings.selectedScriptIds,
-    gitHubConfig.connected,
-    gitHubConfig.autoPush
+    autoSyncEnabled,
+    intervalSeconds,
+    backupToDrive,
+    backupToGitHub,
+    backupFolderId,
+    backupFolderName,
+    selectedScriptIds,
+    ghConnected,
+    ghAutoPush
   ]);
-
-  // Persist all projects
-  useEffect(() => {
-    try {
-      localStorage.setItem('scriptvault_all_projects', JSON.stringify(allProjects));
-    } catch (e) {
-      console.warn('Failed to save all projects', e);
-    }
-  }, [allProjects]);
-
-  // Persist current project
-  useEffect(() => {
-    if (!currentProject) return;
-    try {
-      localStorage.setItem('scriptvault_current_project', JSON.stringify(currentProject));
-    } catch (e) {
-      console.warn('Failed to save current project', e);
-    }
-  }, [currentProject]);
-
-  // Persist settings
-  const handleUpdateSettings = (newSettings: SyncSettings) => {
-    setSyncSettings(newSettings);
-    setActiveScriptsCount(newSettings.selectedScriptIds?.length || allProjects.length);
-    try {
-      localStorage.setItem('scriptvault_sync_settings', JSON.stringify(newSettings));
-    } catch (e) {
-      // ignore
-    }
-  };
-
-  // Persist GitHub config (secrets are stripped — see persistGitHubConfig)
-  const handleUpdateGitHubConfig = (newConfig: GitHubConfig) => {
-    setGitHubConfig(newConfig);
-    persistGitHubConfig(newConfig);
-  };
-
-  const handleGoogleSignIn = async () => {
-    setIsLoggingIn(true);
-    try {
-      const res = await googleSignIn();
-      if (res) {
-        setUser(res.user);
-        setAccessToken(res.accessToken);
-        addLog(`Вход через Google успешен (${res.user.email})`, 'success', 'drive');
-      }
-    } catch (err: any) {
-      addLog(`Ошибка авторизации Google: ${err.message}`, 'error', 'drive');
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    await logout();
-    setUser(null);
-    setAccessToken(null);
-    addLog('Вы вышли из учетной записи Google', 'info', 'drive');
-  };
-
-  const handleManualSync = async () => {
-    setIsSyncing(true);
-    await syncCoordinator.runMultiSync(allProjects, accessToken, syncSettings, gitHubConfig, true);
-    setIsSyncing(false);
-  };
-
-  const handleRestoreVersion = (
-    files: ScriptFile[],
-    commitMessage: string,
-    deployRemotely: boolean = false
-  ) => {
-    if (!currentProject) return;
-    const updated: AppsScriptProject = {
-      ...currentProject,
-      files,
-      lastModified: new Date().toISOString()
-    };
-    setCurrentProject(updated);
-
-    // Update in allProjects list
-    setAllProjects((prev) => prev.map((p) => (p.scriptId === updated.scriptId ? updated : p)));
-
-    // Create a new restore commit in git
-    void createCommit(
-      currentProject.scriptId,
-      files,
-      commitMessage,
-      user?.displayName || 'User Developer',
-      'main',
-      { force: true }
-    );
-
-    addLog(
-      `Выполнен откат версии для "${currentProject.title}"${deployRemotely ? ' и отправка в Google Apps Script' : ''}`,
-      'success',
-      'git'
-    );
-
-    setActiveTab('workspace');
-  };
-
-  const handleLoadDemo = () => {
-    setAllProjects(SAMPLE_SHEETS_SCRIPTS);
-    setCurrentProject(SAMPLE_SHEETS_SCRIPTS[0]);
-    addLog(
-      lang === 'ru'
-        ? 'Загружены демо-проекты (данные не являются реальными)'
-        : 'Demo projects loaded (data is not real)',
-      'info',
-      'git'
-    );
-    setActiveTab('workspace');
-  };
-
-  const handleSelectNewProject = (project: AppsScriptProject) => {
-    setCurrentProject(project);
-
-    // Add to allProjects if not present
-    setAllProjects((prev) => {
-      const idx = prev.findIndex((p) => p.scriptId === project.scriptId);
-      if (idx !== -1) {
-        const copy = [...prev];
-        copy[idx] = project;
-        return copy;
-      }
-      return [project, ...prev];
-    });
-
-    // Add to selectedScriptIds for sync if not included
-    if (
-      syncSettings.selectedScriptIds &&
-      !syncSettings.selectedScriptIds.includes(project.scriptId)
-    ) {
-      handleUpdateSettings({
-        ...syncSettings,
-        selectedScriptIds: [...syncSettings.selectedScriptIds, project.scriptId]
-      });
-    }
-
-    void createCommit(
-      project.scriptId,
-      project.files,
-      `Imported ${project.title}`,
-      'ScriptVault',
-      'main'
-    );
-
-    setActiveTab('workspace');
-  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-600/40">
       {/* Top Navigation */}
-      <Navbar
-        user={user}
-        hasGoogleToken={!!accessToken}
-        onGoogleSignIn={handleGoogleSignIn}
-        onLogout={handleLogout}
-        isLoggingIn={isLoggingIn}
-        gitHubConnected={gitHubConfig.connected}
-        isSyncing={isSyncing}
-        countdown={countdown}
-        lastSyncedAt={lastSyncedAt}
-        activeScriptsCount={activeScriptsCount}
-        onManualSync={handleManualSync}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        lang={lang}
-        setLang={setLang}
-      />
+      <Navbar />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {activeTab === 'workspace' &&
-          (currentProject ? (
-            <CodeWorkspace
-              project={currentProject}
-              onUpdateProject={(updated) => {
-                setCurrentProject(updated);
-                setAllProjects((prev) =>
-                  prev.map((p) => (p.scriptId === updated.scriptId ? updated : p))
-                );
-              }}
-              gitHubConfig={gitHubConfig}
-              onUpdateGitHubConfig={handleUpdateGitHubConfig}
-              accessToken={accessToken}
-              lang={lang}
-              onLog={(msg, type) => addLog(msg, type, 'apps_script')}
-              onCommitCreated={() => {
-                addLog('Коммит зафиксирован вручную', 'success', 'git');
-              }}
-            />
-          ) : (
-            <ProjectEmptyState
-              lang={lang}
-              onLoadDemo={handleLoadDemo}
-              onGoConnect={() => setActiveTab('sheets')}
-            />
-          ))}
+          (currentProject ? <CodeWorkspace /> : <ProjectEmptyState />)}
 
-        {activeTab === 'sheets' && (
-          <SpreadsheetPicker
-            accessToken={accessToken}
-            currentProject={currentProject}
-            onSelectProject={handleSelectNewProject}
-            onGoogleSignIn={handleGoogleSignIn}
-            lang={lang}
-            onLog={(msg, type) => addLog(msg, type, 'drive')}
-          />
-        )}
-
-        {activeTab === 'git' && (
-          <GitHistory
-            allProjects={allProjects}
-            currentProject={currentProject}
-            onSelectProject={(p) => setCurrentProject(p)}
-            onRestoreVersion={handleRestoreVersion}
-            accessToken={accessToken}
-            lang={lang}
-            onLog={(msg, type) => addLog(msg, type, 'git')}
-          />
-        )}
-
-        {activeTab === 'github' && (
-          <GitHubPanel
-            project={currentProject}
-            gitHubConfig={gitHubConfig}
-            onUpdateConfig={handleUpdateGitHubConfig}
-            lang={lang}
-            onLog={(msg, type) => addLog(msg, type, 'github')}
-          />
-        )}
-
-        {activeTab === 'drive' && (
-          <BackupDrivePanel
-            allProjects={allProjects}
-            accessToken={accessToken}
-            settings={syncSettings}
-            onUpdateSettings={handleUpdateSettings}
-            onTriggerBackupNow={handleManualSync}
-            isSyncing={isSyncing}
-            lang={lang}
-            onLog={(msg, type) => addLog(msg, type, 'drive')}
-          />
-        )}
-
-        {activeTab === 'logs' && (
-          <ActivityLog logs={logs} onClearLogs={() => setLogs([])} lang={lang} />
-        )}
+        {activeTab === 'sheets' && <SpreadsheetPicker />}
+        {activeTab === 'git' && <GitHistory />}
+        {activeTab === 'github' && <GitHubPanel />}
+        {activeTab === 'drive' && <BackupDrivePanel />}
+        {activeTab === 'logs' && <ActivityLog />}
       </main>
 
       {/* Footer */}

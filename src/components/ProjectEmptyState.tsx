@@ -3,19 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import React from 'react';
+import { useAppStore } from '../store/appStore';
 import { FolderGit2, Sparkles, Plug } from 'lucide-react';
 
-interface ProjectEmptyStateProps {
-  lang: 'ru' | 'en';
-  onLoadDemo: () => void;
-  onGoConnect: () => void;
-}
-
-export const ProjectEmptyState: React.FC<ProjectEmptyStateProps> = ({
-  lang,
-  onLoadDemo,
-  onGoConnect
-}) => {
+export const ProjectEmptyState: React.FC = () => {
+  const lang = useAppStore((s) => s.lang);
+  const onLoadDemo = useAppStore((s) => s.loadDemoProjects);
+  const setActiveTab = useAppStore((s) => s.setActiveTab);
+  const onGoConnect = () => setActiveTab('sheets');
   const t = {
     ru: {
       title: 'Проект ещё не подключён',

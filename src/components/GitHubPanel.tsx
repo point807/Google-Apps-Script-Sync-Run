@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAppStore } from '../store/appStore';
 import {
   Github,
   Key,
@@ -18,7 +19,6 @@ import {
   Network,
   List
 } from 'lucide-react';
-import { AppsScriptProject, GitHubConfig } from '../types';
 import { clearToken, isRemembered, maskToken, saveToken } from '../services/tokenStore';
 import {
   validateGitHubToken,
@@ -39,21 +39,14 @@ import {
 import { ConfirmationModal } from './ConfirmationModal';
 import { BranchTreeMap } from './BranchTreeMap';
 
-interface GitHubPanelProps {
-  project: AppsScriptProject | null;
-  gitHubConfig: GitHubConfig;
-  onUpdateConfig: (cfg: GitHubConfig) => void;
-  lang: 'ru' | 'en';
-  onLog: (msg: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
-}
-
-export const GitHubPanel: React.FC<GitHubPanelProps> = ({
-  project,
-  gitHubConfig,
-  onUpdateConfig,
-  lang,
-  onLog
-}) => {
+export const GitHubPanel: React.FC = () => {
+  const project = useAppStore((s) => s.currentProject);
+  const gitHubConfig = useAppStore((s) => s.gitHubConfig);
+  const onUpdateConfig = useAppStore((s) => s.updateGitHubConfig);
+  const lang = useAppStore((s) => s.lang);
+  const addLog = useAppStore((s) => s.addLog);
+  const onLog = (msg: string, type?: 'info' | 'success' | 'warning' | 'error') =>
+    addLog(msg, type ?? 'info', 'github');
   const [tokenInput, setTokenInput] = useState('');
   const [validating, setValidating] = useState(false);
   const [gitUser, setGitUser] = useState<GitHubUser | null>(null);

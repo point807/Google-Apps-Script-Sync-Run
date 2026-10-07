@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAppStore } from '../store/appStore';
 import {
   FileSpreadsheet,
   Search,
@@ -12,7 +13,7 @@ import {
   X,
   Info
 } from 'lucide-react';
-import { AppsScriptProject, GoogleDriveFile } from '../types';
+import { GoogleDriveFile } from '../types';
 import {
   listGoogleSpreadsheets,
   listGoogleScripts,
@@ -20,23 +21,15 @@ import {
 } from '../services/googleDriveService';
 import { extractScriptId, fetchAppsScriptProject } from '../services/appsScriptService';
 
-interface SpreadsheetPickerProps {
-  accessToken: string | null;
-  currentProject: AppsScriptProject | null;
-  onSelectProject: (project: AppsScriptProject) => void;
-  onGoogleSignIn?: () => void;
-  lang: 'ru' | 'en';
-  onLog: (msg: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
-}
-
-export const SpreadsheetPicker: React.FC<SpreadsheetPickerProps> = ({
-  accessToken,
-  currentProject,
-  onSelectProject,
-  onGoogleSignIn,
-  lang,
-  onLog
-}) => {
+export const SpreadsheetPicker: React.FC = () => {
+  const accessToken = useAppStore((s) => s.accessToken);
+  const currentProject = useAppStore((s) => s.currentProject);
+  const onSelectProject = useAppStore((s) => s.selectProject);
+  const onGoogleSignIn = useAppStore((s) => s.signIn);
+  const lang = useAppStore((s) => s.lang);
+  const addLog = useAppStore((s) => s.addLog);
+  const onLog = (msg: string, type?: 'info' | 'success' | 'warning' | 'error') =>
+    addLog(msg, type ?? 'info', 'drive');
   const [spreadsheets, setSpreadsheets] = useState<GoogleDriveFile[]>([]);
   const [scripts, setScripts] = useState<GoogleDriveFile[]>([]);
   const [searchQuery, setSearchQuery] = useState('');

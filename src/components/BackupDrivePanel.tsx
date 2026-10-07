@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAppStore } from '../store/appStore';
 import {
   Clock,
   HardDrive,
@@ -15,7 +16,7 @@ import {
   FileSpreadsheet,
   Settings2
 } from 'lucide-react';
-import { AppsScriptProject, DriveBackupSnapshot, DriveFolder, SyncSettings } from '../types';
+import { DriveBackupSnapshot, DriveFolder } from '../types';
 import {
   getOrCreateBackupFolder,
   listGoogleDriveFolders,
@@ -24,27 +25,17 @@ import {
   downloadDriveFileContent
 } from '../services/googleDriveService';
 
-interface BackupDrivePanelProps {
-  allProjects: AppsScriptProject[];
-  accessToken: string | null;
-  settings: SyncSettings;
-  onUpdateSettings: (settings: SyncSettings) => void;
-  onTriggerBackupNow: () => void;
-  isSyncing: boolean;
-  lang: 'ru' | 'en';
-  onLog: (msg: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
-}
-
-export const BackupDrivePanel: React.FC<BackupDrivePanelProps> = ({
-  allProjects,
-  accessToken,
-  settings,
-  onUpdateSettings,
-  onTriggerBackupNow,
-  isSyncing,
-  lang,
-  onLog
-}) => {
+export const BackupDrivePanel: React.FC = () => {
+  const allProjects = useAppStore((s) => s.allProjects);
+  const accessToken = useAppStore((s) => s.accessToken);
+  const settings = useAppStore((s) => s.syncSettings);
+  const onUpdateSettings = useAppStore((s) => s.updateSettings);
+  const onTriggerBackupNow = useAppStore((s) => s.manualSync);
+  const isSyncing = useAppStore((s) => s.isSyncing);
+  const lang = useAppStore((s) => s.lang);
+  const addLog = useAppStore((s) => s.addLog);
+  const onLog = (msg: string, type?: 'info' | 'success' | 'warning' | 'error') =>
+    addLog(msg, type ?? 'info', 'drive');
   // Folder selector state
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [driveFolders, setDriveFolders] = useState<DriveFolder[]>([]);

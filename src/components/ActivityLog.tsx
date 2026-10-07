@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAppStore } from '../store/appStore';
 import {
   Terminal,
   Trash2,
@@ -9,15 +10,11 @@ import {
   Info,
   Clock
 } from 'lucide-react';
-import { SyncLogEntry } from '../types';
 
-interface ActivityLogProps {
-  logs: SyncLogEntry[];
-  onClearLogs: () => void;
-  lang: 'ru' | 'en';
-}
-
-export const ActivityLog: React.FC<ActivityLogProps> = ({ logs, onClearLogs, lang }) => {
+export const ActivityLog: React.FC = () => {
+  const logs = useAppStore((s) => s.logs);
+  const onClearLogs = useAppStore((s) => s.clearLogs);
+  const lang = useAppStore((s) => s.lang);
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
   const t = {

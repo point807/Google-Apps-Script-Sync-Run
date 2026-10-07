@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useAppStore } from '../store/appStore';
 import {
   Code2,
   FileCode,
@@ -20,7 +21,7 @@ import {
   Terminal,
   Github
 } from 'lucide-react';
-import { AppsScriptProject, ScriptFile, GitHubConfig } from '../types';
+import { ScriptFile } from '../types';
 import {
   downloadProjectAsZip,
   updateAppsScriptProject,
@@ -34,27 +35,18 @@ import { pushFilesToGitHub } from '../services/githubService';
 import { createCommit, computeProjectDiff } from '../services/gitService';
 import { SyntaxEditor } from './SyntaxEditor';
 
-interface CodeWorkspaceProps {
-  project: AppsScriptProject;
-  onUpdateProject: (updated: AppsScriptProject) => void;
-  accessToken: string | null;
-  gitHubConfig?: GitHubConfig;
-  onUpdateGitHubConfig?: (cfg: GitHubConfig) => void;
-  lang: 'ru' | 'en';
-  onLog: (msg: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
-  onCommitCreated?: () => void;
-}
-
-export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
-  project,
-  onUpdateProject,
-  accessToken,
-  gitHubConfig,
-  onUpdateGitHubConfig,
-  lang,
-  onLog,
-  onCommitCreated
-}) => {
+export const CodeWorkspace: React.FC = () => {
+  // rendered only when a project is selected (see App shell)
+  const project = useAppStore((s) => s.currentProject)!;
+  const onUpdateProject = useAppStore((s) => s.updateProject);
+  const accessToken = useAppStore((s) => s.accessToken);
+  const gitHubConfig = useAppStore((s) => s.gitHubConfig);
+  const onUpdateGitHubConfig = useAppStore((s) => s.updateGitHubConfig);
+  const lang = useAppStore((s) => s.lang);
+  const addLog = useAppStore((s) => s.addLog);
+  const onLog = (msg: string, type?: 'info' | 'success' | 'warning' | 'error') =>
+    addLog(msg, type ?? 'info', 'apps_script');
+  const onCommitCreated = () => addLog('Коммит зафиксирован вручную', 'success', 'git');
   const [selectedFileIndex, setSelectedFileIndex] = useState(0);
   const [showAddFileModal, setShowAddFileModal] = useState(false);
   const [newFileName, setNewFileName] = useState('');

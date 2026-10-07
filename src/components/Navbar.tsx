@@ -1,42 +1,23 @@
 import React from 'react';
+import { useAppStore } from '../store/appStore';
 import { RefreshCw, Github, Database, LogOut, CheckCircle2 } from 'lucide-react';
-import { User } from 'firebase/auth';
 
-interface NavbarProps {
-  user: User | null;
-  hasGoogleToken: boolean;
-  onGoogleSignIn: () => void;
-  onLogout: () => void;
-  isLoggingIn: boolean;
-  gitHubConnected: boolean;
-  isSyncing: boolean;
-  countdown: number;
-  lastSyncedAt: Date | null;
-  activeScriptsCount?: number;
-  onManualSync: () => void;
-  activeTab: 'workspace' | 'sheets' | 'git' | 'github' | 'drive' | 'logs';
-  setActiveTab: (tab: 'workspace' | 'sheets' | 'git' | 'github' | 'drive' | 'logs') => void;
-  lang: 'ru' | 'en';
-  setLang: (lang: 'ru' | 'en') => void;
-}
-
-export const Navbar: React.FC<NavbarProps> = ({
-  user,
-  hasGoogleToken,
-  onGoogleSignIn,
-  onLogout,
-  isLoggingIn,
-  gitHubConnected,
-  isSyncing,
-  countdown,
-  lastSyncedAt,
-  activeScriptsCount,
-  onManualSync,
-  activeTab,
-  setActiveTab,
-  lang,
-  setLang
-}) => {
+export const Navbar: React.FC = () => {
+  const user = useAppStore((s) => s.user);
+  const hasGoogleToken = useAppStore((s) => !!s.accessToken);
+  const onGoogleSignIn = useAppStore((s) => s.signIn);
+  const onLogout = useAppStore((s) => s.signOut);
+  const isLoggingIn = useAppStore((s) => s.isLoggingIn);
+  const gitHubConnected = useAppStore((s) => s.gitHubConfig.connected);
+  const isSyncing = useAppStore((s) => s.isSyncing);
+  const countdown = useAppStore((s) => s.countdown);
+  const lastSyncedAt = useAppStore((s) => s.lastSyncedAt);
+  const activeScriptsCount = useAppStore((s) => s.activeScriptsCount);
+  const onManualSync = useAppStore((s) => s.manualSync);
+  const activeTab = useAppStore((s) => s.activeTab);
+  const setActiveTab = useAppStore((s) => s.setActiveTab);
+  const lang = useAppStore((s) => s.lang);
+  const setLang = useAppStore((s) => s.setLang);
   const t = {
     ru: {
       appName: 'ScriptVault',

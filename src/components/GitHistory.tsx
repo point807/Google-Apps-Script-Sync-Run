@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useAppStore } from '../store/appStore';
 import {
   GitBranch,
   GitCommit as GitCommitIcon,
@@ -16,29 +17,20 @@ import {
   AlertTriangle,
   FileText
 } from 'lucide-react';
-import { AppsScriptProject, GitCommit, ScriptFile } from '../types';
+import { GitCommit } from '../types';
 import { loadCommits, computeProjectDiff, ProjectDiff } from '../services/gitService';
 import { downloadProjectAsZip, updateAppsScriptProject } from '../services/appsScriptService';
 
-interface GitHistoryProps {
-  allProjects: AppsScriptProject[];
-  currentProject: AppsScriptProject | null;
-  onSelectProject: (project: AppsScriptProject) => void;
-  onRestoreVersion: (files: ScriptFile[], commitMessage: string, deployRemotely?: boolean) => void;
-  accessToken: string | null;
-  lang: 'ru' | 'en';
-  onLog: (msg: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
-}
-
-export const GitHistory: React.FC<GitHistoryProps> = ({
-  allProjects,
-  currentProject,
-  onSelectProject,
-  onRestoreVersion,
-  accessToken,
-  lang,
-  onLog
-}) => {
+export const GitHistory: React.FC = () => {
+  const allProjects = useAppStore((s) => s.allProjects);
+  const currentProject = useAppStore((s) => s.currentProject);
+  const onSelectProject = useAppStore((s) => s.selectProject);
+  const onRestoreVersion = useAppStore((s) => s.restoreVersion);
+  const accessToken = useAppStore((s) => s.accessToken);
+  const lang = useAppStore((s) => s.lang);
+  const addLog = useAppStore((s) => s.addLog);
+  const onLog = (msg: string, type?: 'info' | 'success' | 'warning' | 'error') =>
+    addLog(msg, type ?? 'info', 'git');
   // Script selector
   const [selectedScriptId, setSelectedScriptId] = useState(
     currentProject?.scriptId ?? allProjects[0]?.scriptId ?? ''
