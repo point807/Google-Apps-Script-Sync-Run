@@ -62,13 +62,14 @@
 
 ## 3. Фазы развития
 
-### Фаза A — Фундамент качества (1–2 дня)
+### Фаза A — Фундамент качества ✅ (выполнено)
 
-- [ ] `strict: true` в `tsconfig` + починка всплывших ошибок типов.
-- [ ] ESLint 9 (flat config) + Prettier, скрипты `lint` / `format`; `lint` ≠ typecheck.
-- [ ] GitHub Actions: на каждый PR — `typecheck + lint + build` (позже и тесты).
-- [ ] Error Boundary на корень приложения и на каждую вкладку.
-- [ ] Vitest: первые тесты на чистую логику — `extractScriptId`, diff в `gitService`, diff/сравнение веток, парсинг функций. Это самая тестируемая и самая ломкая часть.
+- [x] `strict: true` в `tsconfig` — код проходит без ошибок.
+- [x] ESLint 9 (flat config: typescript-eslint, react-hooks, unused-imports) + Prettier; `lint` — это ESLint, `typecheck` — tsc.
+- [x] GitHub Actions: на каждый push/PR — `typecheck + lint + test + build`.
+- [x] Error Boundary на корне приложения (восстановление вместо белого экрана).
+- [x] Vitest + happy-dom: 31 тест на `gitService` (diff, коммиты, откат) и `appsScriptService` (парсеры ID и функций).
+- [x] TypeScript закреплён на 6.0.3: typescript-eslint пока не поддерживает нативный TS 7 (tracked: typescript-eslint#10940).
 
 ### Фаза B — Безопасность (2–3 дня)
 

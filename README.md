@@ -357,13 +357,18 @@ ScriptVault работает с доступом к пользовательск
 ## Скрипты
 
 ```text
-npm run dev        # dev-сервер Vite на порту 3000
-npm run build      # production-сборка
-npm run preview    # просмотр production-сборки
-npm run typecheck  # проверка TypeScript
-npm run lint       # линтинг (сейчас — проверка TypeScript)
-npm run clean      # удалить dist
+npm run dev          # dev-сервер Vite на порту 3000
+npm run build        # production-сборка
+npm run preview      # просмотр production-сборки
+npm run typecheck    # проверка TypeScript (strict)
+npm run lint         # ESLint
+npm run format       # Prettier — форматирование
+npm run format:check # Prettier — проверка форматирования
+npm run test         # юнит-тесты (Vitest)
+npm run clean        # удалить dist
 ```
+
+CI (GitHub Actions) запускает typecheck, lint, тесты и сборку на каждый push и pull request.
 
 ## Технологическая схема
 
