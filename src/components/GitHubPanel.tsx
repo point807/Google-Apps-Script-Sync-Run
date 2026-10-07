@@ -38,6 +38,7 @@ import {
 } from '../services/githubService';
 import { ConfirmationModal } from './ConfirmationModal';
 import { BranchTreeMap } from './BranchTreeMap';
+import { useT } from '../i18n';
 
 export const GitHubPanel: React.FC = () => {
   const project = useAppStore((s) => s.currentProject);
@@ -77,89 +78,7 @@ export const GitHubPanel: React.FC = () => {
   const [isPrivate, setIsPrivate] = useState(true);
   const [creatingRepo, setCreatingRepo] = useState(false);
 
-  const t = {
-    ru: {
-      title: 'Интеграция с GitHub',
-      subtitle:
-        'Подключение удаленного репозитория GitHub, управление ветками, синхронизация и резервное копирование',
-      tokenLabel: 'GitHub Personal Access Token (PAT):',
-      tokenPlaceholder: 'ghp_xxxxxxxxxxxxxxxxxxxxxx',
-      connectBtn: 'Подключить GitHub',
-      disconnectBtn: 'Отключить',
-      connectedAs: 'Подключен как:',
-      tokenHelp:
-        'Для работы требуется токен с разрешением "repo". Создайте его на GitHub: Settings → Developer Settings → Personal access tokens (classic) → Generate token (выберите scope: repo).',
-      repoSection: 'Настройки репозитория GitHub',
-      selectRepo: 'Выберите репозиторий:',
-      createRepoBtn: 'Создать новый репозиторий',
-      branchSectionTitle: 'Управление ветками репозитория (Branches)',
-      activeBranchLabel: 'Текущая активная ветка:',
-      createBranchBtn: 'Создать новую ветку',
-      refreshBranches: 'Обновить ветки',
-      switchBranchBtn: 'Переключить',
-      deleteBranchBtn: 'Удалить ветку',
-      pathLabel: 'Папка в репозитории (оставьте пустым для корня):',
-      autoPushToggle: 'Автоматически отправлять в GitHub при каждой резервной копии',
-      pushNowBtn: 'Отправить текущий код в GitHub',
-      pushing: 'Отправка на GitHub...',
-      recentCommitsTitle: 'Последние коммиты в репозитории GitHub:',
-      noRemoteCommits: 'Нет истории коммитов или репозиторий еще не инициализирован.',
-      refreshCommits: 'Обновить историю',
-      createModalTitle: 'Создание нового репозитория на GitHub',
-      repoNamePlaceholder: 'my-apps-script-project',
-      privateOption: 'Приватный репозиторий (рекомендуется)',
-      createBtn: 'Создать',
-      cancel: 'Отмена',
-      createBranchModalTitle: 'Создание новой ветки на GitHub',
-      branchNamePlaceholder: 'feature/sheet-sync или v1.1',
-      baseBranchLabel: 'Создать ответвление от:',
-      createBranchAction: 'Создать ветку',
-      deleteBranchConfirmTitle: 'Удалить ветку на GitHub?',
-      deleteBranchConfirmDesc: (branch: string) =>
-        `Вы уверены, что хотите удалить ветку "${branch}" из репозитория ${gitHubConfig.owner}/${gitHubConfig.repo}? Это действие нельзя отменить.`,
-      cannotDeleteActive: 'Нельзя удалить активную или защищенную ветку'
-    },
-    en: {
-      title: 'GitHub Integration',
-      subtitle: 'Connect remote GitHub repository, manage branches, sync, and backup code',
-      tokenLabel: 'GitHub Personal Access Token (PAT):',
-      tokenPlaceholder: 'ghp_xxxxxxxxxxxxxxxxxxxxxx',
-      connectBtn: 'Connect GitHub',
-      disconnectBtn: 'Disconnect',
-      connectedAs: 'Connected as:',
-      tokenHelp:
-        'Requires a token with "repo" scope. Generate one at: GitHub → Settings → Developer Settings → Personal access tokens → Generate new token (classic).',
-      repoSection: 'GitHub Repository Settings',
-      selectRepo: 'Select target repository:',
-      createRepoBtn: 'Create New Repository',
-      branchSectionTitle: 'Repository Branch Management',
-      activeBranchLabel: 'Active branch for sync:',
-      createBranchBtn: 'New Branch',
-      refreshBranches: 'Refresh branches',
-      switchBranchBtn: 'Switch',
-      deleteBranchBtn: 'Delete branch',
-      pathLabel: 'Folder path (leave empty for root):',
-      autoPushToggle: 'Automatically push to GitHub on every backup snapshot',
-      pushNowBtn: 'Push Current Code to GitHub',
-      pushing: 'Pushing to GitHub...',
-      recentCommitsTitle: 'Recent commits on remote GitHub repository:',
-      noRemoteCommits: 'No remote commit history found or repository is empty.',
-      refreshCommits: 'Refresh remote commits',
-      createModalTitle: 'Create New GitHub Repository',
-      repoNamePlaceholder: 'my-apps-script-project',
-      privateOption: 'Private repository (recommended)',
-      createBtn: 'Create Repository',
-      cancel: 'Cancel',
-      createBranchModalTitle: 'Create New Branch on GitHub',
-      branchNamePlaceholder: 'feature/sheet-sync or v1.1',
-      baseBranchLabel: 'Branch from base:',
-      createBranchAction: 'Create Branch',
-      deleteBranchConfirmTitle: 'Delete branch on GitHub?',
-      deleteBranchConfirmDesc: (branch: string) =>
-        `Are you sure you want to delete branch "${branch}" in repository ${gitHubConfig.owner}/${gitHubConfig.repo}? This action cannot be undone.`,
-      cannotDeleteActive: 'Cannot delete active or protected branch'
-    }
-  }[lang];
+  const t = useT('github');
 
   // Validate token on mount if present
   useEffect(() => {
@@ -1106,7 +1025,14 @@ export const GitHubPanel: React.FC = () => {
       <ConfirmationModal
         isOpen={!!branchToDelete}
         title={t.deleteBranchConfirmTitle}
-        message={branchToDelete ? t.deleteBranchConfirmDesc(branchToDelete) : ''}
+        message={
+          branchToDelete
+            ? t.deleteBranchConfirmDesc(
+                branchToDelete,
+                `${gitHubConfig.owner}/${gitHubConfig.repo}`
+              )
+            : ''
+        }
         isDestructive={true}
         confirmLabel="Да, удалить ветку"
         cancelLabel="Отмена"

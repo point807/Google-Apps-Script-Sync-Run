@@ -24,6 +24,7 @@ import {
   listDriveSnapshots,
   downloadDriveFileContent
 } from '../services/googleDriveService';
+import { useT } from '../i18n';
 
 export const BackupDrivePanel: React.FC = () => {
   const allProjects = useAppStore((s) => s.allProjects);
@@ -32,7 +33,6 @@ export const BackupDrivePanel: React.FC = () => {
   const onUpdateSettings = useAppStore((s) => s.updateSettings);
   const onTriggerBackupNow = useAppStore((s) => s.manualSync);
   const isSyncing = useAppStore((s) => s.isSyncing);
-  const lang = useAppStore((s) => s.lang);
   const addLog = useAppStore((s) => s.addLog);
   const onLog = (msg: string, type?: 'info' | 'success' | 'warning' | 'error') =>
     addLog(msg, type ?? 'info', 'drive');
@@ -53,72 +53,7 @@ export const BackupDrivePanel: React.FC = () => {
   // Frequency custom input
   const [customSeconds, setCustomSeconds] = useState(settings.intervalSeconds);
 
-  const t = {
-    ru: {
-      title: 'Настройки синхронизации и Google Диск',
-      subtitle: 'Выбор папки на Диске, частота авто-синхронизации и выбор отслеживаемых скриптов',
-      folderSection: '1. Папка резервного копирования на Google Диске',
-      currentFolder: 'Текущая выбранная папка:',
-      changeFolderBtn: 'Выбрать / Изменить папку',
-      createNewFolderBtn: 'Создать новую папку',
-      frequencySection: '2. Частота автоматической синхронизации',
-      autoSyncToggle: 'Автоматическая синхронизация изменений в реальном времени',
-      intervalPresetLabel: 'Предустановленные интервалы:',
-      customIntervalLabel: 'Или задайте интервал вручную (в секундах):',
-      applyInterval: 'Применить',
-      scriptsSection: '3. Выбор скриптов для синхронизации',
-      scriptsSubtitle:
-        'Отметьте скрипты, которые должны автоматически проверяться и сохраняться на Google Диск:',
-      selectAll: 'Выбрать все',
-      deselectAll: 'Снять все',
-      selectedCount: 'Выбрано для синхронизации:',
-      backupNowBtn: 'Синхронизировать выбранные скрипты сейчас',
-      syncingBtn: 'Синхронизация...',
-      snapshotsSection: 'Снимки резервных копий в текущей папке',
-      refreshSnapshots: 'Обновить список',
-      noSnapshots: 'В выбранной папке пока нет файлов снимков.',
-      browseModalTitle: 'Выбор папки на Google Диске',
-      folderSearchPlaceholder: 'Поиск папок по названию...',
-      selectFolderBtn: 'Выбрать эту папку',
-      createFolderTitle: 'Создать новую папку на Диске:',
-      folderNamePlaceholder: 'Например, AppsScript_Backups_2026',
-      createFolderAction: 'Создать и выбрать',
-      close: 'Закрыть',
-      noDriveToken: 'Для доступа к Google Диску выполните вход в аккаунт Google в верхней панели.'
-    },
-    en: {
-      title: 'Sync Settings & Google Drive',
-      subtitle: 'Folder selection on Drive, frequency configuration, and target script selection',
-      folderSection: '1. Google Drive Backup Folder',
-      currentFolder: 'Currently selected folder:',
-      changeFolderBtn: 'Browse / Change Folder',
-      createNewFolderBtn: 'Create New Folder',
-      frequencySection: '2. Automatic Synchronization Frequency',
-      autoSyncToggle: 'Automatic real-time changes synchronization',
-      intervalPresetLabel: 'Preset intervals:',
-      customIntervalLabel: 'Or enter custom interval (in seconds):',
-      applyInterval: 'Apply',
-      scriptsSection: '3. Select Scripts to Synchronize',
-      scriptsSubtitle:
-        'Check the scripts that should be automatically tracked and backed up to Google Drive:',
-      selectAll: 'Select All',
-      deselectAll: 'Deselect All',
-      selectedCount: 'Selected for sync:',
-      backupNowBtn: 'Sync Selected Scripts Now',
-      syncingBtn: 'Syncing...',
-      snapshotsSection: 'Backup Snapshots in Current Folder',
-      refreshSnapshots: 'Refresh Snapshots',
-      noSnapshots: 'No snapshot files found in the selected folder yet.',
-      browseModalTitle: 'Select Google Drive Folder',
-      folderSearchPlaceholder: 'Search folders by name...',
-      selectFolderBtn: 'Select this folder',
-      createFolderTitle: 'Create New Folder on Drive:',
-      folderNamePlaceholder: 'e.g., AppsScript_Backups_2026',
-      createFolderAction: 'Create & Select',
-      close: 'Close',
-      noDriveToken: 'Sign in with Google in the top bar to access Drive folders.'
-    }
-  }[lang];
+  const t = useT('backup');
 
   // Load folders when opening folder modal
   const handleOpenFolderModal = async () => {

@@ -10,32 +10,14 @@ import {
   Info,
   Clock
 } from 'lucide-react';
+import { useT } from '../i18n';
 
 export const ActivityLog: React.FC = () => {
   const logs = useAppStore((s) => s.logs);
   const onClearLogs = useAppStore((s) => s.clearLogs);
-  const lang = useAppStore((s) => s.lang);
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
-  const t = {
-    ru: {
-      title: 'Журнал активности и синхронизации',
-      subtitle: 'История всех операций Google Диска, Git, GitHub и мониторинга в реальном времени',
-      clear: 'Очистить журнал',
-      export: 'Экспорт журнала',
-      noLogs: 'Записей в журнале пока нет. Они будут появляться по мере работы системы.',
-      all: 'Все категории'
-    },
-    en: {
-      title: 'Live Activity & Sync Log',
-      subtitle:
-        'Full audit log of Drive snapshots, Git commits, GitHub pushes, and real-time watcher events',
-      clear: 'Clear Log',
-      export: 'Export Log',
-      noLogs: 'No log entries recorded yet.',
-      all: 'All Categories'
-    }
-  }[lang];
+  const t = useT('activity');
 
   const filteredLogs = logs.filter(
     (l) => filterCategory === 'all' || l.category === filterCategory

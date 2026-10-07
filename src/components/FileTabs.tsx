@@ -5,14 +5,7 @@
 import React from 'react';
 import { FileText, FileCode, Code2, Trash2, FilePlus, ExternalLink } from 'lucide-react';
 import { ScriptFile } from '../types';
-
-export interface FileTabsLabels {
-  deleteFile: string;
-  addFile: string;
-  lines: string;
-  chars: string;
-  openInEditor: string;
-}
+import { useT } from '../i18n';
 
 export interface FileTabsProps {
   files: ScriptFile[];
@@ -24,7 +17,6 @@ export interface FileTabsProps {
   onAddFile: () => void;
   currentFile: ScriptFile | undefined;
   scriptId: string;
-  labels: FileTabsLabels;
 }
 
 /** File tab strip: per-file badges (modified/added), delete & add actions, file stats. */
@@ -37,9 +29,9 @@ export const FileTabs: React.FC<FileTabsProps> = ({
   onDeleteFile,
   onAddFile,
   currentFile,
-  scriptId,
-  labels
+  scriptId
 }) => {
+  const labels = useT('code');
   return (
     <div className="bg-slate-950/90 border-b border-slate-800/80 px-4 py-2 flex items-center justify-between gap-2 overflow-x-auto">
       <div className="flex items-center gap-1.5">

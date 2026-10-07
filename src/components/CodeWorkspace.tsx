@@ -32,6 +32,7 @@ import {
 import { pushFilesToGitHub } from '../services/githubService';
 import { createCommit, computeProjectDiff } from '../services/gitService';
 import { SyntaxEditor } from './SyntaxEditor';
+import { useT } from '../i18n';
 
 export const CodeWorkspace: React.FC = () => {
   // rendered only when a project is selected (see App shell)
@@ -97,50 +98,7 @@ export const CodeWorkspace: React.FC = () => {
 
   const currentFile: ScriptFile | undefined = project.files[selectedFileIndex] || project.files[0];
 
-  const t = {
-    ru: {
-      downloadZip: 'Скачать ZIP архив',
-      downloadFile: 'Скачать текущий файл',
-      pushToScript: 'Отправить в Apps Script',
-      pushWarning: 'Внимание: это действие обновит код проекта в Google Apps Script!',
-      commitSnapshot: 'Зафиксировать в Git',
-      addFile: 'Добавить файл',
-      deleteFile: 'Удалить файл',
-      fileNamePlaceholder: 'Название файла (например, DatabaseHelper)',
-      createFileBtn: 'Создать файл',
-      cancel: 'Отмена',
-      editorTitle: 'Редактор кода проекта',
-      openInEditor: 'Открыть в Apps Script Editor',
-      lines: 'строк',
-      chars: 'симв.',
-      boundTo: 'Привязано к таблице:',
-      pushSuccess: 'Код успешно развернут в Google Apps Script!',
-      commitModalTitle: 'Создание нового Git-коммита',
-      commitMessagePlaceholder: 'Краткое описание внесенных изменений...',
-      createCommitBtn: 'Зафиксировать коммит'
-    },
-    en: {
-      downloadZip: 'Download .ZIP Archive',
-      downloadFile: 'Download Current File',
-      pushToScript: 'Push to Apps Script',
-      pushWarning: 'Warning: this will update the live code in Google Apps Script!',
-      commitSnapshot: 'Commit to Git',
-      addFile: 'New File',
-      deleteFile: 'Delete File',
-      fileNamePlaceholder: 'File name (e.g., DatabaseHelper)',
-      createFileBtn: 'Create File',
-      cancel: 'Cancel',
-      editorTitle: 'Project Code Workspace',
-      openInEditor: 'Open in Apps Script Editor',
-      lines: 'lines',
-      chars: 'chars',
-      boundTo: 'Bound to spreadsheet:',
-      pushSuccess: 'Code successfully deployed to Google Apps Script!',
-      commitModalTitle: 'Create New Git Commit',
-      commitMessagePlaceholder: 'Short description of your changes...',
-      createCommitBtn: 'Commit Changes'
-    }
-  }[lang];
+  const t = useT('code');
 
   const handleSourceChange = (newSource: string) => {
     const updatedFiles = [...project.files];
@@ -506,13 +464,6 @@ export const CodeWorkspace: React.FC = () => {
           onAddFile={() => setShowAddFileModal(true)}
           currentFile={currentFile}
           scriptId={project.scriptId}
-          labels={{
-            deleteFile: t.deleteFile,
-            addFile: t.addFile,
-            lines: t.lines,
-            chars: t.chars,
-            openInEditor: t.openInEditor
-          }}
         />
 
         <RunToolbar

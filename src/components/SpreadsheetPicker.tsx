@@ -20,13 +20,13 @@ import {
   copySpreadsheetBackup
 } from '../services/googleDriveService';
 import { extractScriptId, fetchAppsScriptProject } from '../services/appsScriptService';
+import { useT } from '../i18n';
 
 export const SpreadsheetPicker: React.FC = () => {
   const accessToken = useAppStore((s) => s.accessToken);
   const currentProject = useAppStore((s) => s.currentProject);
   const onSelectProject = useAppStore((s) => s.selectProject);
   const onGoogleSignIn = useAppStore((s) => s.signIn);
-  const lang = useAppStore((s) => s.lang);
   const addLog = useAppStore((s) => s.addLog);
   const onLog = (msg: string, type?: 'info' | 'success' | 'warning' | 'error') =>
     addLog(msg, type ?? 'info', 'drive');
@@ -44,67 +44,7 @@ export const SpreadsheetPicker: React.FC = () => {
   const [modalScriptInput, setModalScriptInput] = useState('');
   const [loadingModalScript, setLoadingModalScript] = useState(false);
 
-  const t = {
-    ru: {
-      title: 'Google Таблицы и Apps Script',
-      subtitle:
-        'Подключение таблиц со встроенным кодом или автономных проектов Apps Script из вашего Google Диска',
-      tabs: {
-        spreadsheets: 'Таблицы Google Sheets',
-        scripts: 'Автономные Apps Script',
-        manual: 'Ввести ссылку / ID'
-      },
-      searchPlaceholder: 'Поиск по названию файлов...',
-      refresh: 'Обновить список',
-      demoTemplates: 'Готовые шаблоны скриптов для тестирования:',
-      noFilesFound: 'Файлы не найдены в вашем Google Диске.',
-      connectGoogleMsg:
-        'Войдите через Google в шапке сайта, чтобы просмотреть файлы с вашего Google Диска.',
-      currentActive: 'Текущий активный проект:',
-      loadProject: 'Загрузить скрипт',
-      connectScript: 'Подключить Apps Script',
-      loadingScript: 'Загрузка...',
-      openInSheets: 'Открыть в Sheets',
-      openInDrive: 'Диск',
-      exportSheet: 'Копия на Диске',
-      exporting: 'Копирование...',
-      customLabel: 'Вставьте ссылку на проект Apps Script или его Script ID:',
-      customHelper:
-        'Примеры:\n• https://script.google.com/home/projects/1abc.../edit\n• ID скрипта: 1aB2cD3eF4...',
-      fetchBtn: 'Получить код скрипта',
-      boundScriptNotice:
-        'Важно: идентификатор Google Таблицы отличается от Script ID прикрепленного к ней скрипта.'
-    },
-    en: {
-      title: 'Google Sheets & Apps Script',
-      subtitle:
-        'Connect spreadsheets with bound code or standalone Apps Script projects from Google Drive',
-      tabs: {
-        spreadsheets: 'Google Spreadsheets',
-        scripts: 'Standalone Scripts',
-        manual: 'Direct URL / Script ID'
-      },
-      searchPlaceholder: 'Search files by name...',
-      refresh: 'Refresh files',
-      demoTemplates: 'Quick-test templates ready to use:',
-      noFilesFound: 'No files found in your Google Drive.',
-      connectGoogleMsg: 'Sign in with Google in the top bar to access your real Drive files.',
-      currentActive: 'Currently loaded project:',
-      loadProject: 'Load Script',
-      connectScript: 'Connect Apps Script',
-      loadingScript: 'Loading...',
-      openInSheets: 'Open in Sheets',
-      openInDrive: 'Drive',
-      exportSheet: 'Drive Backup',
-      exporting: 'Copying...',
-      customLabel: 'Paste Apps Script editor URL or Script ID:',
-      customHelper:
-        'Examples:\n• https://script.google.com/home/projects/1abc.../edit\n• Script ID: 1aB2cD3eF4...',
-      fetchBtn: 'Fetch Project Code',
-      boundScriptNotice:
-        'Important: A spreadsheet ID is different from the Script ID of its attached Apps Script.'
-    }
-  }[lang];
+  const t = useT('sheets');
 
   const loadDriveFiles = async () => {
     if (!accessToken) return;

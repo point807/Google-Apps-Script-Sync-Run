@@ -20,6 +20,7 @@ import {
 import { GitCommit } from '../types';
 import { loadCommits, computeProjectDiff, ProjectDiff } from '../services/gitService';
 import { downloadProjectAsZip, updateAppsScriptProject } from '../services/appsScriptService';
+import { useT } from '../i18n';
 
 export const GitHistory: React.FC = () => {
   const allProjects = useAppStore((s) => s.allProjects);
@@ -50,76 +51,7 @@ export const GitHistory: React.FC = () => {
   // Copy SHA feedback
   const [copiedSha, setCopiedSha] = useState<string | null>(null);
 
-  const t = {
-    ru: {
-      title: 'Система контроля версий Git',
-      subtitle:
-        'Просмотр истории коммитов для каждого скрипта, автора, даты, сообщений и функции отката',
-      scriptSelectorLabel: 'Выберите скрипт для просмотра истории:',
-      branch: 'Ветка:',
-      noCommits: 'Для выбранного скрипта пока нет истории коммитов.',
-      noCommitsDesc:
-        'Коммиты формируются автоматически при авто-синхронизации или при ручной фиксации изменений.',
-      filesChanged: 'файлов изменено',
-      additions: 'добавлено',
-      deletions: 'удалено',
-      syncedDrive: 'Google Диск',
-      syncedGH: 'GitHub',
-      viewDiff: 'Посмотреть изменения (Diff)',
-      downloadZip: 'Скачать ZIP снимка',
-      rollbackBtn: 'Откатить к этому коммиту',
-      rollbackTitle: 'Откат версии кода к выбранному коммиту',
-      rollbackDesc: (commitId: string, msg: string) =>
-        `Вы собираетесь вернуть проект к коммиту ${commitId} ("${msg}"). Текущие файлы рабочего пространства будут заменены состоянием из этого коммита.`,
-      deployCheckbox: 'Также немедленно развернуть (перезаписать) в Google Apps Script',
-      deployNotice:
-        'Внимание: перезапись кода в Google Apps Script обновит скрипт на серверах Google!',
-      confirmRollbackAction: 'Подтвердить откат',
-      cancel: 'Отмена',
-      diffModalTitle: 'Сравнение изменений с предыдущей версией',
-      close: 'Закрыть',
-      authorLabel: 'Автор:',
-      dateLabel: 'Дата и время:',
-      messageLabel: 'Сообщение:',
-      shaLabel: 'SHA:',
-      headBadge: 'HEAD (Текущая версия)',
-      filesInCommit: 'Файлы в этом коммите:'
-    },
-    en: {
-      title: 'Git Version Control System',
-      subtitle:
-        'Inspect commit history per script including author, timestamp, message, and rollback',
-      scriptSelectorLabel: 'Select script to view commit history:',
-      branch: 'Branch:',
-      noCommits: 'No commits found for the selected script yet.',
-      noCommitsDesc:
-        'Commits are recorded automatically during auto-sync or when creating manual snapshots.',
-      filesChanged: 'files changed',
-      additions: 'additions',
-      deletions: 'deletions',
-      syncedDrive: 'Google Drive',
-      syncedGH: 'GitHub',
-      viewDiff: 'Inspect Diff',
-      downloadZip: 'Download ZIP snapshot',
-      rollbackBtn: 'Rollback to this commit',
-      rollbackTitle: 'Rollback Code Version to Selected Commit',
-      rollbackDesc: (commitId: string, msg: string) =>
-        `You are about to revert the project back to commit ${commitId} ("${msg}"). Workspace files will be overwritten with this snapshot.`,
-      deployCheckbox: 'Also immediately deploy (overwrite) to Google Apps Script remotely',
-      deployNotice:
-        'Caution: overwriting code in Google Apps Script updates code directly on Google servers!',
-      confirmRollbackAction: 'Confirm Rollback',
-      cancel: 'Cancel',
-      diffModalTitle: 'Changes Diff against parent commit',
-      close: 'Close',
-      authorLabel: 'Author:',
-      dateLabel: 'Timestamp:',
-      messageLabel: 'Message:',
-      shaLabel: 'SHA:',
-      headBadge: 'HEAD (Current Version)',
-      filesInCommit: 'Files in this commit:'
-    }
-  }[lang];
+  const t = useT('history');
 
   // Refresh commits when active script changes
   const refreshCommits = async () => {
