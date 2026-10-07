@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import React, { Suspense, lazy, useState, useRef } from 'react';
+import React, { Suspense, lazy, useEffect, useState, useRef } from 'react';
 import {
   Search,
   Copy,
@@ -38,9 +38,31 @@ export const SyntaxEditor: React.FC<SyntaxEditorProps> = ({ file, onChange, lang
 
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Escape collapses the fullscreen pane; body scrolling is locked while expanded.
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsFullscreen(false);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isFullscreen]);
+
+  // Entering/leaving fullscreen resizes the pane: Monaco must remeasure it,
+  // otherwise the editor keeps its old (often zero-width) viewport.
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => editorRef.current?.layout());
+    return () => cancelAnimationFrame(raf);
+  }, [isFullscreen]);
+
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(file.source || '');
+      await navigator.clipboard.writeText(editorRef.current?.getValue() ?? file.source ?? '');
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -52,22 +74,26 @@ export const SyntaxEditor: React.FC<SyntaxEditorProps> = ({ file, onChange, lang
     <div
       ref={containerRef}
       className={`flex flex-col bg-slate-900 ${
-        isFullscreen ? 'fixed inset-0 z-[80] p-4' : 'h-full'
+        isFullscreen ? 'fixed inset-0 z-[80] p-4 shadow-2xl' : 'h-full min-h-0'
       }`}
     >
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800 bg-slate-950/80">
-        <div className="flex items-center gap-2 text-xs text-slate-400">
-          <Code2 className="w-4 h-4 text-indigo-400" />
-          <span className="font-mono text-slate-200 font-semibold">{file.name}</span>
-          <span className="text-[10px] uppercase">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2 border-b border-slate-800 bg-slate-950/80">
+        <div className="flex items-center gap-2 text-xs text-slate-400 min-w-0">
+          <Code2 className="w-4 h-4 text-indigo-400 shrink-0" />
+          <span className="font-mono text-slate-200 font-semibold truncate max-w-[10rem] sm:max-w-[22rem]">
+            {file.name}
+          </span>
+          <span className="text-[10px] uppercase shrink-0">
             {file.type === 'JSON' ? '.json' : file.type === 'HTML' ? '.html' : '.gs'}
           </span>
-          <span className="text-slate-600">|</span>
-          <span className="font-mono">{(file.source || '').split('\n').length} стр.</span>
+          <span className="text-slate-600 hidden sm:inline">|</span>
+          <span className="font-mono hidden sm:inline">
+            {(file.source || '').split('\n').length} стр.
+          </span>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           {/* Font size */}
           <button
             type="button"
@@ -130,14 +156,18 @@ export const SyntaxEditor: React.FC<SyntaxEditorProps> = ({ file, onChange, lang
             className="p-1.5 text-slate-400 hover:text-white rounded transition cursor-pointer"
             title="Копировать код"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? (
+              <Check className="w-3.5 h-3.5 text-emerald-400" />
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
           </button>
 
           <button
             type="button"
             onClick={() => setIsFullscreen((f) => !f)}
             className="p-1.5 text-slate-400 hover:text-white rounded transition cursor-pointer"
-            title={isFullscreen ? 'Свернуть' : 'На весь экран'}
+            title={isFullscreen ? 'Свернуть (Esc)' : 'На весь экран'}
           >
             {isFullscreen ? (
               <Minimize2 className="w-3.5 h-3.5" />
@@ -148,8 +178,8 @@ export const SyntaxEditor: React.FC<SyntaxEditorProps> = ({ file, onChange, lang
         </div>
       </div>
 
-      {/* Editor area */}
-      <div className="flex-1 min-h-0">
+      {/* Editor area — sized pane, monaco scrolls internally */}
+      <div className="relative flex-1 min-h-0 overflow-hidden">
         <Suspense
           fallback={
             <textarea

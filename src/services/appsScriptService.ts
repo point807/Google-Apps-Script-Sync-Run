@@ -2,6 +2,7 @@ import { apiFetch } from './http';
 import LocalRunnerWorker from './localRunnerWorker?worker';
 import JSZip from 'jszip';
 import { AppsScriptProject, ScriptFile } from '../types';
+import { JAVASCRIPT_IDENTIFIER_PATTERN } from './javascriptIdentifier';
 
 const SCRIPT_API_BASE = 'https://script.googleapis.com/v1';
 
@@ -314,7 +315,10 @@ export const extractFunctionsFromCode = (
 
     // 1. function name(...) or async function name(...) or export function name(...)
     const funcMatch = line.match(
-      /(?:export\s+)?(?:async\s+)?function(?:\s*\*|\s+)+([a-zA-Z0-9_$]+)\s*\(/
+      new RegExp(
+        String.raw`(?:export\s+)?(?:async\s+)?function(?:\s*\*|\s+)+(${JAVASCRIPT_IDENTIFIER_PATTERN})\s*\(`,
+        'u'
+      )
     );
     if (funcMatch && funcMatch[1]) {
       const name = funcMatch[1];
@@ -326,7 +330,10 @@ export const extractFunctionsFromCode = (
 
     // 2. const/let/var name = ... (arrow functions or function expressions)
     const varFuncMatch = line.match(
-      /(?:const|let|var)\s+([a-zA-Z0-9_$]+)\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|[a-zA-Z0-9_$]+\s*=>)/
+      new RegExp(
+        String.raw`(?:const|let|var)\s+(${JAVASCRIPT_IDENTIFIER_PATTERN})\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|${JAVASCRIPT_IDENTIFIER_PATTERN}\s*=>)`,
+        'u'
+      )
     );
     if (varFuncMatch && varFuncMatch[1]) {
       const name = varFuncMatch[1];
@@ -338,7 +345,10 @@ export const extractFunctionsFromCode = (
 
     // 3. name: function(...) or name: (...) => ... (object methods)
     const objFuncMatch = line.match(
-      /^\s*([a-zA-Z0-9_$]+)\s*:\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>)/
+      new RegExp(
+        String.raw`^\s*(${JAVASCRIPT_IDENTIFIER_PATTERN})\s*:\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>)`,
+        'u'
+      )
     );
     if (objFuncMatch && objFuncMatch[1]) {
       const name = objFuncMatch[1];
@@ -350,7 +360,10 @@ export const extractFunctionsFromCode = (
 
     // 4. this.name = ... or globalThis.name = ...
     const globalMatch = line.match(
-      /(?:this|globalThis|window)\.([a-zA-Z0-9_$]+)\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>)/
+      new RegExp(
+        String.raw`(?:this|globalThis|window)\.(${JAVASCRIPT_IDENTIFIER_PATTERN})\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>)`,
+        'u'
+      )
     );
     if (globalMatch && globalMatch[1]) {
       const name = globalMatch[1];
@@ -362,8 +375,10 @@ export const extractFunctionsFromCode = (
   }
 
   // Fallback global regex scan to ensure multi-line declarations are also caught
-  const globalRegex =
-    /(?:function\s+([a-zA-Z0-9_$]+)\s*\(|(?:const|let|var)\s+([a-zA-Z0-9_$]+)\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|[a-zA-Z0-9_$]+\s*=>))/g;
+  const globalRegex = new RegExp(
+    String.raw`(?:function(?:\s*\*|\s+)+(${JAVASCRIPT_IDENTIFIER_PATTERN})\s*\(|(?:const|let|var)\s+(${JAVASCRIPT_IDENTIFIER_PATTERN})\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|${JAVASCRIPT_IDENTIFIER_PATTERN}\s*=>))`,
+    'gu'
+  );
   let match;
   while ((match = globalRegex.exec(source)) !== null) {
     const fnName = match[1] || match[2];

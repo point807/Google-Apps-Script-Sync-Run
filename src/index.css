@@ -1,1 +1,19 @@
 @import 'tailwindcss';
+
+/* JetBrains Mono carries Cyrillic glyphs — the CSS-only default monospace
+   stack has none, which turns Russian identifiers into tofu boxes. */
+@import '@fontsource-variable/jetbrains-mono';
+
+@theme {
+  --font-mono:
+    'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono',
+    monospace;
+}
+
+/* Monaco resolves its own font stack — override the standalone-editor defaults. */
+.monaco-editor,
+.monaco-editor .view-lines,
+.monaco-editor .margin,
+.monaco-editor .inputarea {
+  font-family: var(--font-mono) !important;
+}

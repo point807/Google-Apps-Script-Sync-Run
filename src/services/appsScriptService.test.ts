@@ -107,4 +107,31 @@ describe('extractFunctionsFromCode', () => {
   it('returns empty list for empty source', () => {
     expect(extractFunctionsFromCode('')).toEqual([]);
   });
+
+  it('finds function declarations with Cyrillic (Russian) names', () => {
+    const source = [
+      'function отправитьОтчёт() {}',
+      'async function получитьДанные() {}',
+      'const посчитатьСумму = () => 1;',
+      'const обработка = function (e) {};'
+    ].join('\n');
+    const funcs = extractFunctionsFromCode(source, 'Код');
+    expect(funcs.map((f) => f.name)).toEqual([
+      'отправитьОтчёт',
+      'получитьДанные',
+      'посчитатьСумму',
+      'обработка'
+    ]);
+    expect(funcs.every((f) => f.fileName === 'Код')).toBe(true);
+  });
+
+  it('keeps line numbers for Cyrillic declarations', () => {
+    const funcs = extractFunctionsFromCode('// комментарий\nfunction Сумма() {}', 'Код');
+    expect(funcs).toEqual([{ name: 'Сумма', fileName: 'Код', lineNumber: 2 }]);
+  });
+
+  it('does not truncate identifiers mixing Latin and Cyrillic letters', () => {
+    const names = extractFunctionsFromCode('function logОшибку() {}').map((f) => f.name);
+    expect(names).toEqual(['logОшибку']);
+  });
 });

@@ -507,8 +507,9 @@ export const CodeWorkspace: React.FC = () => {
           onOpenDeployments={() => setShowDeployments(true)}
         />
 
-        {/* Editor Area */}
-        <div className="relative bg-slate-950 flex-1">
+        {/* Editor Area — explicit viewport height so Monaco always has a
+            measurable box (a zero-height parent renders an invisible editor) */}
+        <div className="relative bg-slate-950 flex-1 min-h-[280px] h-[55vh] lg:h-[62vh]">
           {currentFile ? (
             <SyntaxEditor file={currentFile} onChange={handleSourceChange} lang={lang} />
           ) : (
