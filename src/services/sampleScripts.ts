@@ -130,6 +130,13 @@ function sendTelegramMessage(text) {
   };
   Logger.log('Sending message to Telegram: ' + text);
 }
+
+// Функция с русским именем — проверка распознавания Unicode-идентификаторов
+function отправитьПриветствие() {
+  const текст = 'Привет! Это демо-функция с именем на кириллице.';
+  Logger.log(текст);
+  return { выполнено: true, сообщение: текст };
+}
 `
       },
       {

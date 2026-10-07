@@ -4,10 +4,12 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  extractAllScriptFunctions,
   extractFunctionsFromCode,
   extractScriptId,
   extractSpreadsheetId,
 } from './appsScriptService';
+import { SAMPLE_SHEETS_SCRIPTS } from './sampleScripts';
 
 describe('extractScriptId', () => {
   it('extracts id from the editor URL', () => {
@@ -133,5 +135,12 @@ describe('extractFunctionsFromCode', () => {
   it('does not truncate identifiers mixing Latin and Cyrillic letters', () => {
     const names = extractFunctionsFromCode('function logОшибку() {}').map((f) => f.name);
     expect(names).toEqual(['logОшибку']);
+  });
+
+  it('finds the Russian-named function shipped in the demo CRM script', () => {
+    const demo = SAMPLE_SHEETS_SCRIPTS.find((p) => p.scriptId.startsWith('1DEMO_LEADS'));
+    expect(demo).toBeDefined();
+    const names = extractAllScriptFunctions(demo!.files).map((f) => f.name);
+    expect(names).toContain('отправитьПриветствие');
   });
 });
