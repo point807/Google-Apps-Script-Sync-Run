@@ -102,6 +102,7 @@ interface AppStore {
   initSyncCoordinator: () => void;
   applyAutoSync: () => void;
   manualSync: () => Promise<void>;
+  cancelSync: () => void;
 }
 
 export const useAppStore = create<AppStore>((set, get) => {
@@ -109,7 +110,10 @@ export const useAppStore = create<AppStore>((set, get) => {
     set((state) => ({ logs: [entry, ...state.logs.slice(0, 200)] }));
   };
 
-  const persistProjects = (allProjects: AppsScriptProject[], currentProject: AppsScriptProject | null) => {
+  const persistProjects = (
+    allProjects: AppsScriptProject[],
+    currentProject: AppsScriptProject | null
+  ) => {
     try {
       localStorage.setItem('scriptvault_all_projects', JSON.stringify(allProjects));
       if (currentProject) {
@@ -187,7 +191,12 @@ export const useAppStore = create<AppStore>((set, get) => {
             selectedScriptIds: [...(syncSettings.selectedScriptIds || []), project.scriptId]
           };
 
-      set({ currentProject: project, allProjects: nextProjects, syncSettings: nextSettings, activeTab: 'workspace' });
+      set({
+        currentProject: project,
+        allProjects: nextProjects,
+        syncSettings: nextSettings,
+        activeTab: 'workspace'
+      });
       persistProjects(nextProjects, project);
       if (nextSettings !== syncSettings) {
         try {
@@ -197,7 +206,13 @@ export const useAppStore = create<AppStore>((set, get) => {
         }
       }
 
-      void createCommit(project.scriptId, project.files, `Imported ${project.title}`, 'ScriptVault', 'main');
+      void createCommit(
+        project.scriptId,
+        project.files,
+        `Imported ${project.title}`,
+        'ScriptVault',
+        'main'
+      );
     },
 
     updateProject: (project) => {
@@ -209,7 +224,11 @@ export const useAppStore = create<AppStore>((set, get) => {
     },
 
     loadDemoProjects: () => {
-      set({ allProjects: SAMPLE_SHEETS_SCRIPTS, currentProject: SAMPLE_SHEETS_SCRIPTS[0], activeTab: 'workspace' });
+      set({
+        allProjects: SAMPLE_SHEETS_SCRIPTS,
+        currentProject: SAMPLE_SHEETS_SCRIPTS[0],
+        activeTab: 'workspace'
+      });
       persistProjects(SAMPLE_SHEETS_SCRIPTS, SAMPLE_SHEETS_SCRIPTS[0]);
       get().addLog(
         get().lang === 'ru'
@@ -233,9 +252,16 @@ export const useAppStore = create<AppStore>((set, get) => {
       set({ currentProject: updated, allProjects: nextProjects, activeTab: 'workspace' });
       persistProjects(nextProjects, updated);
 
-      void createCommit(currentProject.scriptId, files, commitMessage, user?.displayName || 'User Developer', 'main', {
-        force: true
-      });
+      void createCommit(
+        currentProject.scriptId,
+        files,
+        commitMessage,
+        user?.displayName || 'User Developer',
+        'main',
+        {
+          force: true
+        }
+      );
 
       get().addLog(
         `Выполнен откат версии для "${currentProject.title}"${deployRemotely ? ' и отправка в Google Apps Script' : ''}`,
@@ -247,17 +273,27 @@ export const useAppStore = create<AppStore>((set, get) => {
     createInitialCommits: () => {
       const { allProjects } = get();
       allProjects.forEach((proj) => {
-        void createCommit(proj.scriptId, proj.files, `Initial snapshot of ${proj.title}`, 'ScriptVault System', 'main');
+        void createCommit(
+          proj.scriptId,
+          proj.files,
+          `Initial snapshot of ${proj.title}`,
+          'ScriptVault System',
+          'main'
+        );
       });
     },
 
     // --- settings ---
     syncSettings: INITIAL_SYNC_SETTINGS,
     gitHubConfig: (() => {
-      const base = loadJson<GitHubConfig>('scriptvault_gh_config', DEFAULT_GITHUB_CONFIG, (parsed) => ({
-        ...DEFAULT_GITHUB_CONFIG,
-        ...parsed
-      }));
+      const base = loadJson<GitHubConfig>(
+        'scriptvault_gh_config',
+        DEFAULT_GITHUB_CONFIG,
+        (parsed) => ({
+          ...DEFAULT_GITHUB_CONFIG,
+          ...parsed
+        })
+      );
       const storedToken = loadToken();
       return storedToken ? { ...base, token: storedToken.token } : base;
     })(),
@@ -319,7 +355,9 @@ export const useAppStore = create<AppStore>((set, get) => {
             return {
               allProjects: nextProjects,
               currentProject:
-                updatedProject.scriptId === state.currentProject?.scriptId ? updatedProject : state.currentProject
+                updatedProject.scriptId === state.currentProject?.scriptId
+                  ? updatedProject
+                  : state.currentProject
             };
           });
           persistProjects(get().allProjects, get().currentProject);
@@ -339,8 +377,18 @@ export const useAppStore = create<AppStore>((set, get) => {
     manualSync: async () => {
       const { allProjects, accessToken, syncSettings, gitHubConfig } = get();
       set({ isSyncing: true });
-      await syncCoordinator.runMultiSync(allProjects, accessToken, syncSettings, gitHubConfig, true);
+      await syncCoordinator.runMultiSync(
+        allProjects,
+        accessToken,
+        syncSettings,
+        gitHubConfig,
+        true
+      );
       set({ isSyncing: false });
+    },
+
+    cancelSync: () => {
+      syncCoordinator.cancelSync();
     }
   };
 });

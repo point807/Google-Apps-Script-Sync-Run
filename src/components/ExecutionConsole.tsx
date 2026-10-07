@@ -51,6 +51,7 @@ export const ExecutionConsole: React.FC<ExecutionConsoleProps> = ({
           <span className="text-[10px] text-slate-500 font-mono uppercase">
             {runResult.source === 'cloud' ? 'Google Cloud API' : 'Apps Script Runner'}
           </span>
+
           <button
             type="button"
             onClick={onClose}
@@ -61,6 +62,14 @@ export const ExecutionConsole: React.FC<ExecutionConsoleProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Local runner safety warning */}
+      {runResult.source === 'local_runner' && (
+        <div className="p-2.5 rounded-xl bg-amber-950/30 border border-amber-500/30 text-xs text-amber-300">
+          ⚠ Код выполняется локально в вашем браузере (песочница), а не в Google Apps Script.
+          Сервисы Google (SpreadsheetApp, DriveApp, UrlFetchApp и т.п.) в этом режиме недоступны.
+        </div>
+      )}
 
       {/* Error Message if any */}
       {runResult.error && (

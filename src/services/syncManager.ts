@@ -8,6 +8,7 @@ export class SyncCoordinator {
   private countdownTimer: any = null;
   private secondsRemaining: number = 30;
   private isRunning: boolean = false;
+  private abortController: AbortController | null = null;
   private onLogCallback?: (entry: SyncLogEntry) => void;
   private onStatusChangeCallback?: (status: {
     isSyncing: boolean;
@@ -104,6 +105,8 @@ export class SyncCoordinator {
   ): Promise<void> {
     if (this.isRunning) return;
     this.isRunning = true;
+    this.abortController = new AbortController();
+    const signal = this.abortController.signal;
 
     const targetProjects =
       settings.selectedScriptIds && settings.selectedScriptIds.length > 0
@@ -147,6 +150,10 @@ export class SyncCoordinator {
       }
 
       for (const project of targetProjects) {
+        if (signal.aborted) {
+          this.log('warning', 'realtime', 'Синхронизация отменена пользователем');
+          break;
+        }
         await this.syncSingleProject(
           project,
           accessToken,
@@ -158,6 +165,7 @@ export class SyncCoordinator {
       }
     } finally {
       this.isRunning = false;
+      this.abortController = null;
       if (this.onStatusChangeCallback) {
         this.onStatusChangeCallback({
           isSyncing: false,
@@ -166,6 +174,14 @@ export class SyncCoordinator {
           activeScriptsCount: targetProjects.length
         });
       }
+    }
+  }
+
+  /** Abort the running sync at the next safe point. */
+  public cancelSync(): void {
+    if (this.abortController && this.isRunning) {
+      this.log('warning', 'realtime', 'Запрошена отмена синхронизации...');
+      this.abortController.abort();
     }
   }
 

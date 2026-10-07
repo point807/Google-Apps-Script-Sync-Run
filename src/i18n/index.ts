@@ -9,6 +9,27 @@ export type Lang = 'ru' | 'en';
 /** Central translation catalog, one namespace per UI area. */
 export const messages = {
   ru: {
+    nav: {
+      appName: 'ScriptVault',
+      tagline: 'Apps Script Sync & Git',
+      tabs: {
+        workspace: 'Код и Скрипты',
+        sheets: 'Таблицы Sheets',
+        git: 'История Git',
+        github: 'GitHub',
+        drive: 'Настройки и Диск',
+        logs: 'Журнал событий'
+      },
+      signIn: 'Войти через Google',
+      signingIn: 'Вход...',
+      liveWatcher: 'Синхронизация через',
+      syncNow: 'Синхронизировать',
+      syncing: 'Синхронизация...',
+      cancelSync: 'Отменить синхронизацию',
+      justNow: 'только что',
+      connectedDrive: 'Диск подключен',
+      connectedGH: 'GitHub активен'
+    },
     activity: {
       title: 'Журнал активности и синхронизации',
       subtitle: 'История всех операций Google Диска, Git, GitHub и мониторинга в реальном времени',
@@ -177,6 +198,27 @@ export const messages = {
     }
   },
   en: {
+    nav: {
+      appName: 'ScriptVault',
+      tagline: 'Apps Script Sync & Git',
+      tabs: {
+        workspace: 'Code & Scripts',
+        sheets: 'Google Sheets',
+        git: 'Git History',
+        github: 'GitHub',
+        drive: 'Sync & Drive',
+        logs: 'Event Log'
+      },
+      signIn: 'Sign in with Google',
+      signingIn: 'Signing in...',
+      liveWatcher: 'Sync in',
+      syncNow: 'Sync Now',
+      syncing: 'Syncing...',
+      cancelSync: 'Cancel sync',
+      justNow: 'just now',
+      connectedDrive: 'Drive Connected',
+      connectedGH: 'GitHub Active'
+    },
     activity: {
       title: 'Live Activity & Sync Log',
       subtitle:

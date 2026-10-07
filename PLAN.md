@@ -86,12 +86,12 @@
 - [x] **Слой хранилища:** `storage.ts` на IndexedDB (`idb`) — история коммитов переехала из localStorage (квота ~5 МБ больше не теряет историю); одноразовая миграция легаси-данных с сохранностью при сбоях. `kvStorage` приготовлен для будущих снимков.
 - [x] **HTTP-клиент:** `http.ts` (`apiFetch`) — retry с exponential backoff + jitter, уважение `Retry-After`; безопасная политика: 429 ретраится всегда (запрос отклонён), сетевые ошибки/5xx — только для идемпотентных методов. Подключён ко всем трём API-сервисам (32 вызова).
 - [x] **Состояние:** единый Zustand-стор `useAppStore` (auth, ui, projects, settings, logs, sync status + все обработчики из App.tsx); проп-дрейлинг убран, `App.tsx` — тонкая оболочка.
-- [ ] **Разбор гигантских компонентов:** (в процессе)
-  - `CodeWorkspace` (1447 → 1160 строк): извлечены `ProjectToolbar`, `FileTabs`, `RunToolbar`, `ExecutionConsole`; остаются модалки;
-  - `GitHubPanel` → `RepoConnectForm`, `BranchManager`, `CommitHistory`, `PushDialog`, `RepoCreateDialog`;
-  - `BackupDrivePanel` → `FolderPicker`, `SnapshotList`, `SyncSettings`.
+- [x] **Разбор гигантских компонентов:**
+  - `CodeWorkspace` (1447 → 1110): `ProjectToolbar`, `FileTabs`, `RunToolbar`, `ExecutionConsole` + `SyntaxEditor`;
+  - `GitHubPanel` (1140 → 546): `BranchManager`, `RemoteCommitsFeed`;
+  - `BackupDrivePanel` (677 → 352): `FolderPickerModal`, `SnapshotList`.
 - [ ] **i18n:** словари `ru.json` / `en.json` + хук `t()`, никаких строк в компонентах.
-- [ ] **Синхронизация:** отмена через `AbortController` (защита от параллельных запусков уже есть в `syncManager.isRunning`).
+- [x] **Синхронизация:** отмена через `AbortController` (`syncManager.cancelSync`, кнопка в Navbar), защита от параллельных запусков — `syncManager.isRunning`.
 
 ### Фаза D — Улучшения продукта (по приоритетам)
 

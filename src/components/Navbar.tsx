@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAppStore } from '../store/appStore';
-import { RefreshCw, Github, Database, LogOut, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, Github, Database, LogOut, CheckCircle2, X } from 'lucide-react';
+import { useT } from '../i18n';
 
 export const Navbar: React.FC = () => {
   const user = useAppStore((s) => s.user);
@@ -14,52 +15,12 @@ export const Navbar: React.FC = () => {
   const lastSyncedAt = useAppStore((s) => s.lastSyncedAt);
   const activeScriptsCount = useAppStore((s) => s.activeScriptsCount);
   const onManualSync = useAppStore((s) => s.manualSync);
+  const onCancelSync = useAppStore((s) => s.cancelSync);
   const activeTab = useAppStore((s) => s.activeTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const lang = useAppStore((s) => s.lang);
   const setLang = useAppStore((s) => s.setLang);
-  const t = {
-    ru: {
-      appName: 'ScriptVault',
-      tagline: 'Apps Script Sync & Git',
-      tabs: {
-        workspace: 'Код и Скрипты',
-        sheets: 'Таблицы Sheets',
-        git: 'История Git',
-        github: 'GitHub',
-        drive: 'Настройки и Диск',
-        logs: 'Журнал событий'
-      },
-      signIn: 'Войти через Google',
-      signingIn: 'Вход...',
-      liveWatcher: 'Синхронизация через',
-      syncNow: 'Синхронизировать',
-      syncing: 'Синхронизация...',
-      justNow: 'только что',
-      connectedDrive: 'Диск подключен',
-      connectedGH: 'GitHub активен'
-    },
-    en: {
-      appName: 'ScriptVault',
-      tagline: 'Apps Script Sync & Git',
-      tabs: {
-        workspace: 'Code & Scripts',
-        sheets: 'Google Sheets',
-        git: 'Git History',
-        github: 'GitHub',
-        drive: 'Sync & Drive',
-        logs: 'Event Log'
-      },
-      signIn: 'Sign in with Google',
-      signingIn: 'Signing in...',
-      liveWatcher: 'Sync in',
-      syncNow: 'Sync Now',
-      syncing: 'Syncing...',
-      justNow: 'just now',
-      connectedDrive: 'Drive Connected',
-      connectedGH: 'GitHub Active'
-    }
-  }[lang];
+  const t = useT('nav');
 
   return (
     <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80">
@@ -184,16 +145,23 @@ export const Navbar: React.FC = () => {
                   {activeScriptsCount} скр.
                 </span>
               )}
-              <button
-                onClick={onManualSync}
-                disabled={isSyncing}
-                title={t.syncNow}
-                className="p-1 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-md transition cursor-pointer"
-              >
-                <RefreshCw
-                  className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-indigo-400' : ''}`}
-                />
-              </button>
+              {isSyncing ? (
+                <button
+                  onClick={onCancelSync}
+                  title={t.cancelSync}
+                  className="p-1 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-md transition cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5 text-rose-400" />
+                </button>
+              ) : (
+                <button
+                  onClick={onManualSync}
+                  title={t.syncNow}
+                  className="p-1 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-md transition cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             {/* Language toggle */}
